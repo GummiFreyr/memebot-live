@@ -137,9 +137,8 @@
 
   .feed { background: var(--card); border-radius: var(--r-md); box-shadow: var(--shadow); padding: 6px; list-style: none; margin: 0; display: grid; max-height: 560px; overflow: auto; }
   .act { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 10px; border-radius: var(--r-sm); width: 100%; text-align: left; }
-  .act:hover:not(:disabled) { background: var(--soft); }
-  .act:disabled { cursor: default; }
-  .act .what { font-weight: 700; overflow-wrap: anywhere; }
+  .act:hover { background: var(--soft); }
+  .act .what { font-weight: 700; overflow-wrap: anywhere; font-size: 16px; }
   .act .when { font-size: 12px; color: var(--muted); }
   .act .amt { text-align: right; font-weight: 700; white-space: nowrap; }
   .act .amt small { display: block; font-size: 12px; font-weight: 500; color: var(--muted); }
@@ -147,11 +146,6 @@
   .act.recent { background: var(--accent-soft); }
   .act.recent.win { background: var(--gain-soft); } .act.recent.lose { background: var(--loss-soft); }
   @keyframes slide { from { transform: translateY(-12px); opacity: 0; } to { transform: none; opacity: 1; } }
-  .badge { display: inline-block; font-size: 11px; font-weight: 800; padding: 2px 7px; border-radius: 6px; margin-right: 6px; vertical-align: 1px; }
-  .badge.buy { background: var(--accent-soft); color: var(--accent); }
-  .badge.win { background: var(--gain-soft); color: var(--gain); }
-  .badge.lose { background: var(--loss-soft); color: var(--loss); }
-  .badge.rent { background: var(--soft); color: var(--muted); }
 
   .scrim { position: fixed; inset: 0; background: var(--scrim); z-index: 20; animation: fade .2s ease; }
   @keyframes fade { from { opacity: 0; } }
@@ -163,8 +157,11 @@
   .sheet .hd .t { flex: 1; min-width: 0; }
   .sheet .hd h3 { margin: 0; font-size: 20px; font-weight: 800; overflow-wrap: anywhere; }
   .sheet .hd .p { font-size: 14px; color: var(--muted); }
+  .sheet .hd .p.gain { color: var(--gain); } .sheet .hd .p.loss { color: var(--loss); }
   .close { width: 36px; height: 36px; border-radius: 50%; background: var(--soft); font-size: 20px; line-height: 1; color: var(--muted); }
-  .cchart { height: clamp(190px, 38vh, 320px); min-width: 0; overflow: hidden; }
+  .cchart { position: relative; height: clamp(200px, 46vh, 420px); min-width: 0; overflow: hidden; }
+  .tag { position: absolute; left: -9px; top: -9px; z-index: 3; width: 18px; height: 18px; border-radius: 50%; display: grid; place-items: center; font-size: 11px; font-weight: 800; line-height: 1; color: #fff; pointer-events: none; box-shadow: 0 0 0 1.5px var(--card); }
+  .tag.b { background: var(--gain); } .tag.s { background: var(--loss); }
   .cnote { font-size: 12px; color: var(--muted); margin-top: 6px; }
   .clist { overflow: auto; display: grid; gap: 6px; align-content: start; }
   .crow { display: flex; justify-content: space-between; gap: 10px; background: var(--soft); border-radius: var(--r-sm); padding: 10px 12px; font-size: 14px; flex-wrap: wrap; }
@@ -389,9 +386,17 @@
   const pct = (v) => sgn(v) + Math.abs(v * 100).toFixed(Math.abs(v) < 0.1 ? 1 : 0) + '%';
   const tone = (el, v) => { el.classList.toggle('gain', v > 0); el.classList.toggle('loss', v < 0); };
   const ago = (ts) => { const s = Date.now() / 1000 - ts; if (s < 60) return 'just now'; if (s < 3600) return Math.floor(s / 60) + 'm ago'; if (s < 86400) return Math.floor(s / 3600) + 'h ago'; return Math.floor(s / 86400) + 'd ago'; };
-  const dur = (s) => { const m = Math.max(0, Math.round(s / 60)); return m < 60 ? m + ' min' : Math.floor(m / 60) + 'h ' + (m % 60) + 'm'; };
+  const dur = (s) => { const m = Math.max(0, Math.round(s / 60)); return m < 1 ? 'under 1 min' : m < 60 ? m + ' min' : Math.floor(m / 60) + 'h ' + (m % 60) + 'm'; };
   const clock = (ts) => new Date(ts * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
-  const fmtPrice = (p) => { if (!p) return '—'; if (p >= 1) return '$' + p.toFixed(2); const d = Math.max(2, -Math.floor(Math.log10(p)) + 3); return '$' + p.toFixed(Math.min(d, 12)); };
+  // short prices: $0.000115, and long runs of zeros as $0.0₅123
+  const fmtPrice = (p) => {
+    if (!(p > 0)) return '—';
+    if (p >= 1) return '$' + p.toFixed(2);
+    const [m, e] = p.toExponential(2).split('e');
+    const zeros = -Number(e) - 1, digits = m.replace('.', '');
+    if (zeros < 4) return '$0.' + '0'.repeat(zeros) + digits;
+    return '$0.0' + String(zeros).replace(/\d/g, (d) => '₀₁₂₃₄₅₆₇₈₉'[d]) + digits;
+  };
 
   // ---------- network ----------
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -439,6 +444,36 @@
   }
   const sym = (mint) => (meta[mint] && meta[mint].symbol) || mint.slice(0, 4) + '…';
 
+  // coins DexScreener has no name, picture or pool for: ask GeckoTerminal, once per coin each time the app opens
+  const GECKO = 'https://api.geckoterminal.com/api/v2/networks/solana';
+  const askedDex = new Set(), askedGecko = new Set();
+  let filling = false;
+  async function fillMeta(mints) {
+    const fresh = mints.filter((a) => !meta[a] && !askedDex.has(a));
+    fresh.forEach((a) => askedDex.add(a));
+    if (fresh.length) Object.assign(prices, await dexPrices(fresh));
+    if (filling) return;
+    filling = true;
+    try {
+      for (const a of mints) {
+        const had = meta[a] || {};
+        if ((had.symbol && had.icon && had.pool) || askedGecko.has(a)) continue;
+        askedGecko.add(a);
+        const r = await fetch(`${GECKO}/tokens/${a}`, { headers: { Accept: 'application/json' } }).catch(() => null);
+        if (r && r.ok) {
+          const d = (await r.json()).data, t = d.attributes;
+          const top = d.relationships && d.relationships.top_pools && d.relationships.top_pools.data[0];
+          const old = meta[a] || {};   // a price update may have written this coin while the request ran
+          meta[a] = { ...old, symbol: old.symbol || t.symbol || '', icon: old.icon || (/^https:/.test(t.image_url || '') ? t.image_url : ''), pool: old.pool || (top ? top.id.replace(/^solana_/, '') : ''), url: old.url || '' };
+          store.set('meta2', meta);
+          if (solBal != null) renderAll();
+        } else if (r && r.status === 429) askedGecko.delete(a);
+        await sleep(2200);   // GeckoTerminal allows about 30 requests a minute
+      }
+    } finally { filling = false; }
+  }
+
+  const iconOk = new Set();   // pictures that have loaded, shown right away on redraws instead of flashing the initials
   function avatar(mint, small) {
     const el = document.createElement('div');
     el.className = 'av' + (small ? ' sm' : '');
@@ -448,8 +483,10 @@
     const icon = meta[mint] && meta[mint].icon;
     if (icon) {
       const img = new Image(); img.alt = ''; img.referrerPolicy = 'no-referrer';
-      img.onload = () => { el.textContent = ''; el.append(img); };
+      const show = () => { el.textContent = ''; el.append(img); };
+      img.onload = () => { iconOk.add(icon); show(); };
       img.src = icon;
+      if (iconOk.has(icon)) show();
     }
     return el;
   }
@@ -660,34 +697,34 @@
   function renderFeed(m) {
     const feed = $('feed');
     const now = Date.now() / 1000;
-    const list = m.evs.filter((e) => e.side === 'BUY' || e.side === 'SELL' || (e.side === 'RENT' && e.sol > 0.0005)).slice(-100).reverse();
+    // one row per trade: each sell carries its buy's result, and a buy only shows while the coin is still held
+    const list = m.evs.filter((e) => e.side === 'SELL' || (e.side === 'BUY' && m.lastBuy[e.mint] === e)).slice(-100).reverse();
     if (!list.length) { firstPaint = false; feed.replaceChildren(Object.assign(document.createElement('li'), { className: 'empty', textContent: 'No trades in the wallet\'s recent history yet. New ones show up here the moment they happen.' })); return; }
     feed.replaceChildren(...list.map((e) => {
       const li = document.createElement('li');
       const row = document.createElement('button'); row.type = 'button';
-      const kind = e.side === 'BUY' ? 'buy' : e.side === 'RENT' ? 'rent' : (e.pnl ?? 0) > 0 ? 'win' : 'lose';
+      const kind = e.side === 'BUY' ? 'buy' : (e.pnl ?? 0) > 0 ? 'win' : 'lose';
       const isNew = !firstPaint && !rendered.has(e.sig); rendered.add(e.sig);
       row.className = 'act ' + kind + (isNew ? ' fresh' : '') + (now - e.ts < 120 ? ' recent' : '');
       const what = document.createElement('div');
-      const title = document.createElement('div'); title.className = 'what';
-      const badge = document.createElement('span'); badge.className = 'badge ' + kind;
-      badge.textContent = e.side === 'BUY' ? 'BUY' : e.side === 'RENT' ? 'RENT' : 'SELL';
-      title.append(badge, document.createTextNode(e.side === 'RENT' ? 'Rent reclaimed' : sym(e.mint)));
+      const title = document.createElement('div'); title.className = 'what'; title.textContent = sym(e.mint);
       const when = document.createElement('div'); when.className = 'when';
-      when.textContent = clock(e.ts) + ' · ' + ago(e.ts) + (e.side === 'SELL' && e.held != null ? ' · held ' + dur(e.held) : '') + (e.side === 'RENT' ? ' · ' + e.n + ' empty account' + (e.n > 1 ? 's' : '') : '');
+      when.textContent = e.side === 'BUY' ? 'Holding · ' + dur(now - e.ts) : ago(e.ts) + (e.held != null ? ' · held ' + dur(e.held) : '');
       what.append(title, when);
       const amt = document.createElement('div'); amt.className = 'amt num';
+      const worth = e.side === 'BUY' && prices[e.mint] && solUsd && hold[e.mint] ? (hold[e.mint] * prices[e.mint]) / solUsd : null;
       if (e.side === 'SELL' && e.ret != null) {
         amt.textContent = pct(e.ret); tone(amt, e.pnl);
         const s = document.createElement('small'); s.textContent = money(e.pnl, true); amt.append(s);
+      } else if (worth != null) {
+        amt.textContent = pct(worth / e.sol - 1); tone(amt, worth - e.sol);
+        const s = document.createElement('small'); s.textContent = money(worth - e.sol, true); amt.append(s);
       } else {
-        amt.textContent = money(e.sol, e.side !== 'BUY');
-        const s = document.createElement('small'); s.textContent = e.side === 'BUY' ? 'spent' : e.side === 'RENT' ? 'back' : 'received'; amt.append(s);
+        amt.textContent = money(e.sol);
+        const s = document.createElement('small'); s.textContent = e.side === 'BUY' ? 'spent' : 'received'; amt.append(s);
       }
-      const av = e.mint ? avatar(e.mint, true) : Object.assign(document.createElement('div'), { className: 'av sm', textContent: '↺' });
-      if (!e.mint) av.style.background = 'var(--muted)';
-      row.append(av, what, amt);
-      if (e.mint) row.addEventListener('click', () => openSheet(e.mint)); else row.disabled = true;
+      row.append(avatar(e.mint, true), what, amt);
+      row.addEventListener('click', () => openSheet(e.mint, e));
       li.append(row);
       return li;
     }));
@@ -695,26 +732,34 @@
   }
 
   // ---------- coin sheet ----------
-  let cChart = null, sheetMint = null, lastFocus = null;
+  let cChart = null, sheetMint = null, sheetTrade = null, lastFocus = null;
+  function paintSheetHead() {
+    const el = $('sheetPrice'), e = sheetTrade;
+    if (e && e.side === 'SELL' && e.ret != null) {
+      el.textContent = pct(e.ret) + ' · ' + money(e.pnl, true) + (e.held != null ? ' · held ' + dur(e.held) : '');
+      tone(el, e.pnl);
+    } else { el.textContent = fmtPrice(prices[sheetMint]); tone(el, 0); }
+  }
   function markerFor(e, time) {
     const buy = e.side === 'BUY';
-    const win = (e.pnl ?? 0) > 0;
-    return { time, position: buy ? 'belowBar' : 'aboveBar', color: css(buy ? '--accent' : win ? '--gain' : '--loss'), shape: buy ? 'arrowUp' : 'arrowDown', text: buy ? 'BUY' : 'SELL' + (e.ret != null ? ' ' + pct(e.ret) : '') };
+    return { time, position: 'inBar', color: css(buy ? '--gain' : '--loss'), shape: 'circle', text: buy ? 'B' : 'S' };
   }
-  async function openSheet(mint) {
+  const clearTags = () => $('cchart').querySelectorAll('.tag').forEach((el) => el.remove());
+  async function openSheet(mint, trade) {
     sheetMint = mint; lastFocus = document.activeElement;
     $('scrim').hidden = false; $('sheet').hidden = false;
     const av = avatar(mint); av.id = 'sheetAv'; $('sheetAv').replaceWith(av);
     $('sheetName').textContent = sym(mint);
-    $('sheetPrice').textContent = fmtPrice(prices[mint]);
     $('sheetClose').focus();
     const m = model();
     const trades = m.evs.filter((e) => e.mint === mint && (e.side === 'BUY' || e.side === 'SELL'));
+    sheetTrade = trade || trades[trades.length - 1] || null;
+    paintSheetHead();
     const list = $('clist');
     list.replaceChildren(...trades.slice().reverse().map((e) => {
       const r = document.createElement('div'); r.className = 'crow';
       const l = document.createElement('span'); const b = document.createElement('b'); b.textContent = e.side === 'BUY' ? 'Bought' : 'Sold';
-      l.append(b, document.createTextNode(' at ' + clock(e.ts) + (solUsd ? ' · ' + fmtPrice((e.sol * solUsd) / e.tokens) : '')));
+      l.append(b, document.createTextNode(' ' + clock(e.ts) + ' · ' + ago(e.ts)));
       const rr = document.createElement('span'); rr.className = 'num';
       if (e.side === 'SELL' && e.ret != null) { rr.textContent = pct(e.ret) + ' · ' + money(e.pnl, true); tone(rr, e.pnl); } else rr.textContent = money(e.sol);
       r.append(l, rr); return r;
@@ -722,23 +767,30 @@
     const link = meta[mint] && meta[mint].url;
     if (link) { const a = document.createElement('a'); a.className = 'ext'; a.href = link; a.target = '_blank'; a.rel = 'noopener'; a.textContent = 'Open on DexScreener ↗'; list.append(a); }
     if (cChart) { cChart.remove(); cChart = null; }
+    clearTags();
     $('cnote').textContent = '';
     if (!LWC) { $('cnote').textContent = 'The chart needs an internet connection to load.'; return; }
     cChart = LWC.createChart($('cchart'), {
       ...chartBase(),
-      grid: { vertLines: { color: css('--soft') }, horzLines: { color: css('--soft') } },
+      grid: { vertLines: { visible: false }, horzLines: { visible: false } },
+      rightPriceScale: { borderVisible: false, scaleMargins: { top: 0.2, bottom: 0.2 } },
       crosshair: { mode: 0, vertLine: { labelBackgroundColor: css('--ink') }, horzLine: { labelBackgroundColor: css('--ink') } },
     });
     const G = css('--gain'), L = css('--loss');
     const fmt = { type: 'custom', formatter: (p) => fmtPrice(p), minMove: 1e-12 };
-    const first = trades.length ? trades[0].ts : Date.now() / 1000 - 3600;
-    let candles = null, step = 60;
+    // the chart opens zoomed on this trade, from just before the buy to just after the sell (or now, if still held)
+    const nowS = Math.floor(Date.now() / 1000), t = sheetTrade;
+    const to = t && t.side === 'SELL' ? t.ts : nowS;
+    const from = t ? (t.side === 'SELL' && t.held != null ? t.ts - t.held : t.ts) : nowS - 3600;
+    const span = Math.max(to - from, 60);
+    const agg = span <= 45 * 60 ? 1 : span <= 4 * 3600 ? 5 : 15, step = agg * 60;
+    const pad = Math.max(span * 0.6, 12 * step);
+    let candles = null;
     const pool = meta[mint] && meta[mint].pool;
     if (pool) {
       try {
-        const agg = Date.now() / 1000 - first > 4 * 3600 ? 5 : 1;
-        step = agg * 60;
-        const r = await fetch(`https://api.geckoterminal.com/api/v2/networks/solana/pools/${pool}/ohlcv/minute?aggregate=${agg}&limit=300&currency=usd`, { headers: { Accept: 'application/json' } });
+        const until = Math.min(nowS, Math.ceil(to + pad + 60 * step));   // a little extra on each side to drag through
+        const r = await fetch(`${GECKO}/pools/${pool}/ohlcv/minute?aggregate=${agg}&limit=300&currency=usd&before_timestamp=${until}`, { headers: { Accept: 'application/json' } });
         if (r.ok) {
           const j = await r.json();
           candles = (j.data.attributes.ohlcv_list || []).map((c) => ({ time: c[0] + TZ, open: +c[1], high: +c[2], low: +c[3], close: +c[4] }))
@@ -747,13 +799,33 @@
       } catch { candles = null; }
     }
     if (sheetMint !== mint || !cChart) return;
-    const bucket = (ts) => Math.floor((ts + TZ) / step) * step;
     if (candles && candles.length) {
-      const series = cChart.addCandlestickSeries({ upColor: G, downColor: L, borderVisible: false, wickUpColor: G, wickDownColor: L, priceFormat: fmt });
+      const series = cChart.addCandlestickSeries({ upColor: G, downColor: L, borderVisible: false, wickUpColor: G, wickDownColor: L, priceFormat: fmt, priceLineVisible: false, lastValueVisible: false });
       series.setData(candles);
-      const times = new Set(candles.map((c) => c.time));
-      series.setMarkers(trades.filter((e) => times.has(bucket(e.ts))).map((e) => markerFor(e, bucket(e.ts))));
-      $('cnote').textContent = 'Candles from GeckoTerminal (' + step / 60 + '-minute). Arrows mark the bot\'s buys and sells.';
+      // quiet coins have minutes with no candle, so each trade's tag goes on the candle nearest to it
+      const nearest = (ts) => candles.reduce((best, c) => (Math.abs(c.time - ts - TZ) < Math.abs(best.time - ts - TZ) ? c : best));
+      const inRange = (ts) => ts + TZ >= candles[0].time - step && ts + TZ <= candles[candles.length - 1].time + step;
+      // green B and red S tags, drawn over the chart: B just under its candle, S just over it
+      const tags = trades.filter((e) => inRange(e.ts)).map((e) => {
+        const c = nearest(e.ts), buy = e.side === 'BUY';
+        const el = Object.assign(document.createElement('div'), { className: 'tag ' + (buy ? 'b' : 's'), textContent: buy ? 'B' : 'S' });
+        $('cchart').append(el);
+        return { el, time: c.time, price: buy ? c.low : c.high, off: buy ? 13 : -13 };
+      });
+      $('cnote').textContent = step / 60 + '-minute candles from GeckoTerminal';
+      cChart.timeScale().setVisibleRange({ from: from - pad + TZ, to: Math.min(nowS, to + pad) + TZ });
+      const chart = cChart;
+      const place = () => {
+        if (cChart !== chart) return;
+        const width = chart.timeScale().width();
+        tags.forEach(({ el, time, price, off }) => {
+          const x = chart.timeScale().timeToCoordinate(time), y = series.priceToCoordinate(price);
+          el.hidden = x == null || y == null || x < 0 || x > width;
+          if (!el.hidden) el.style.transform = `translate(${x}px, ${y + off}px)`;
+        });
+        requestAnimationFrame(place);
+      };
+      place();
     } else {
       const pts = (trails[mint] || []).map(([t, p]) => ({ time: t + TZ, value: p }))
         .concat(trades.map((e) => ({ time: e.ts + TZ, value: solUsd ? (e.sol * solUsd) / e.tokens : null })).filter((p) => p.value))
@@ -763,12 +835,13 @@
       const times = new Set(pts.map((p) => p.time));
       series.setMarkers(trades.map((e) => markerFor(e, e.ts + TZ)).filter((mk) => times.has(mk.time)));
       $('cnote').textContent = 'Candles weren\'t available for this coin, so this shows prices recorded while this page was open, plus the bot\'s own trade prices.';
+      cChart.timeScale().fitContent();
     }
-    cChart.timeScale().fitContent();
   }
   function closeSheet() {
-    $('scrim').hidden = true; $('sheet').hidden = true; sheetMint = null;
+    $('scrim').hidden = true; $('sheet').hidden = true; sheetMint = null; sheetTrade = null;
     if (cChart) { cChart.remove(); cChart = null; }
+    clearTags();
     if (lastFocus && lastFocus.focus) lastFocus.focus();
   }
   $('sheetClose').addEventListener('click', closeSheet);
@@ -829,7 +902,7 @@
     $('win').textContent = m.rounds.length ? Math.round((wins / m.rounds.length) * 100) + '%' : '—';
     $('winSub').textContent = wins + ' of ' + m.rounds.length + ' trades won';
     renderFeed(m);
-    if (sheetMint && prices[sheetMint]) $('sheetPrice').textContent = fmtPrice(prices[sheetMint]);
+    if (sheetMint) paintSheetHead();
   }
 
   function setLive(state, text) { $('live').className = 'live ' + state; $('liveText').textContent = text; }
@@ -885,8 +958,8 @@
       const fresh = await loadHistory();
       solBal = (await rpc('getBalance', [cfg.wallet])).value / LAMPORTS;
       hold = await holdings();
-      const unknown = [...new Set(fresh.map((e) => e.mint).concat(Object.keys(hold)).filter(Boolean))].filter((x) => !meta[x]);
-      if (unknown.length) Object.assign(prices, await dexPrices(unknown));
+      const known = Object.values(txCache).filter(Boolean).map((e) => e.mint);
+      fillMeta([...new Set(known.concat(Object.keys(hold)).filter(Boolean))]).catch(() => {});
       model();   // fills in each sell's result before toasts and sounds pick win/lose
       const trades = fresh.filter((e) => e.side === 'BUY' || e.side === 'SELL').sort((a, b) => a.ts - b.ts);
       if (!first) trades.forEach(announce);
@@ -1017,7 +1090,7 @@
     document.querySelectorAll('meta[name="theme-color"]').forEach((m) => { if (cfg.theme === 'auto') m.setAttribute('content', m.media.includes('dark') ? '#0b0d17' : '#f3f4f8'); else m.setAttribute('content', bg); });
     if (wChart) wChart.applyOptions(walletChartTheme());
     if (running && solBal != null) renderAll();
-    if (sheetMint) openSheet(sheetMint);
+    if (sheetMint) openSheet(sheetMint, sheetTrade);
   }
   $('themeBtn').addEventListener('click', () => { cfg.theme = THEMES[(THEMES.indexOf(cfg.theme) + 1) % 3]; store.set('theme', cfg.theme); applyTheme(); });
   try { darkMQ.addEventListener('change', () => { if (cfg.theme === 'auto') applyTheme(); }); } catch {}

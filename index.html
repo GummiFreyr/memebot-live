@@ -1023,7 +1023,13 @@
   try { darkMQ.addEventListener('change', () => { if (cfg.theme === 'auto') applyTheme(); }); } catch {}
   applyTheme();
 
-  if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});
+  if ('serviceWorker' in navigator && location.protocol === 'https:') {
+    // a new version reloads the app by itself, but never while Settings is open
+    const hadWorker = !!navigator.serviceWorker.controller;
+    let reloading = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => { if (hadWorker && !reloading && $('setup').hidden) { reloading = true; location.reload(); } });
+    navigator.serviceWorker.register('sw.js').then((reg) => document.addEventListener('visibilitychange', () => { if (!document.hidden) reg.update().catch(() => {}); })).catch(() => {});
+  }
   const paintSound = () => { $('soundBtn').setAttribute('aria-pressed', cfg.sound ? 'true' : 'false'); const label = cfg.sound ? 'Sound on' : 'Sound off'; $('soundBtn').title = label; $('soundBtn').setAttribute('aria-label', label); };
   $('soundBtn').addEventListener('click', () => { cfg.sound = !cfg.sound; store.set('sound', cfg.sound); paintSound(); if (cfg.sound) beep('win'); });
   const paintUnit = () => { $('unitSol').setAttribute('aria-pressed', cfg.unit === 'SOL' ? 'true' : 'false'); $('unitUsd').setAttribute('aria-pressed', cfg.unit === 'USD' ? 'true' : 'false'); };

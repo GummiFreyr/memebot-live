@@ -74,8 +74,7 @@
   .me > div:last-child { min-width: 0; }
   .me .live { display: flex; min-width: 0; }
   #liveText { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .me .face { width: 42px; height: 42px; border-radius: 50%; background: var(--ink); color: var(--on-ink); display: grid; place-items: center; font-weight: 800; font-size: 18px; }
-  .me h1 { margin: 0; font-size: 19px; font-weight: 800; letter-spacing: -.01em; }
+  .me h1 { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip-path: inset(50%); }
   .live { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; color: var(--muted); }
   .live i { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
   .live.on { color: var(--gain); } .live.on i { background: var(--gain); animation: pulse 1.6s infinite; }
@@ -85,9 +84,10 @@
   .seg { display: inline-flex; background: var(--card); border-radius: 999px; padding: 3px; box-shadow: var(--shadow); }
   .seg button { padding: 6px 13px; border-radius: 999px; font-size: 13px; font-weight: 700; color: var(--muted); }
   .seg button[aria-pressed="true"] { background: var(--ink); color: var(--on-ink); }
-  .pill { background: var(--card); box-shadow: var(--shadow); border-radius: 999px; padding: 8px 14px; font-size: 13px; font-weight: 600; color: var(--muted); }
+  .pill { width: 36px; height: 36px; padding: 0; display: grid; place-items: center; background: var(--card); box-shadow: var(--shadow); border-radius: 50%; color: var(--muted); }
   .pill[aria-pressed="true"] { color: var(--ink); }
-  .pill svg { display: none; width: 18px; height: 18px; }
+  .pill svg { display: block; width: 18px; height: 18px; }
+  .pill .on { display: none; } .pill[aria-pressed="true"] .on { display: inline; } .pill[aria-pressed="true"] .off { display: none; }
 
   .wallet { background: radial-gradient(120% 90% at 100% 0%, var(--glow, transparent), transparent 62%), var(--card); transition: background .6s ease; border-radius: var(--r-lg); box-shadow: var(--shadow); padding: 22px 22px 10px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; min-width: 0; }
   .wallet .label { font-size: 13px; font-weight: 600; color: var(--muted); }
@@ -115,7 +115,6 @@
   .section { display: grid; gap: 10px; min-width: 0; }
   .sh { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; padding: 0 4px; }
   .sh h2 { margin: 0; font-size: 17px; font-weight: 800; }
-  .sh span { font-size: 12px; color: var(--muted); }
 
   .av { width: 40px; height: 40px; border-radius: 50%; flex: none; display: grid; place-items: center; font-weight: 800; font-size: 15px; color: #fff; overflow: hidden; }
   .av img { width: 100%; height: 100%; object-fit: cover; display: block; }
@@ -236,13 +235,7 @@
     #dash { gap: 12px; padding-bottom: 12px; }
     .top { flex-wrap: nowrap; }
     .tools { flex: none; flex-wrap: nowrap; gap: 6px; }
-    .me { gap: 10px; }
-    .me .face { width: 36px; height: 36px; font-size: 16px; flex: none; }
-    .me h1 { font-size: 17px; }
     .seg button { padding: 6px 10px; }
-    .pill { width: 36px; height: 36px; padding: 0; display: grid; place-items: center; }
-    .pill svg { display: block; }
-    .pill .lbl { display: none; }
     .cols { gap: 12px; }
     .setup { padding: 18px; gap: 12px; }
     .stats { gap: 8px; }
@@ -266,7 +259,6 @@
     .tf button { padding: 7px 16px; }
     .hcard, .act { min-height: 60px; }
   }
-  @media (max-width: 360px) { .me .face { display: none; } }
   @media (display-mode: standalone) { .foot { display: none; } }
   @media (prefers-reduced-motion: reduce) { .act.fresh, .hcard.up, .hcard.down, .live.on i, .sheet, .scrim, .toast, .sk, .radar::before, .radar::after { animation: none; } .hcard .bar b { transition: none; } }
 </style>
@@ -275,7 +267,6 @@
 <div class="app">
   <header class="top">
     <div class="me">
-      <div class="face" aria-hidden="true">M</div>
       <div>
         <h1>Memebot</h1>
         <span class="live" id="live"><i></i><span id="liveText">Connecting</span></span>
@@ -283,9 +274,9 @@
     </div>
     <div class="tools">
       <div class="seg" role="group" aria-label="Show amounts in"><button id="unitSol" aria-pressed="true">SOL</button><button id="unitUsd" aria-pressed="false">USD</button></div>
-      <button class="pill" id="soundBtn" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5L6 9H3v6h3l5 4z"/><path d="M15.5 9a4 4 0 0 1 0 6"/></svg><span class="lbl">Sound off</span></button>
-      <button class="pill" id="themeBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 1 0 18z" fill="currentColor"/></svg><span class="lbl">Auto</span></button>
-      <button class="pill" id="settingsBtn">Settings</button>
+      <button class="pill" id="soundBtn" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5L6 9H3v6h3l5 4z"/><path class="on" d="M15.5 9a4 4 0 0 1 0 6"/><path class="off" d="M16 10l4 4M20 10l-4 4"/></svg></button>
+      <button class="pill" id="themeBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 1 0 18z" fill="currentColor"/></svg></button>
+      <button class="pill" id="settingsBtn" aria-label="Settings" title="Settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/></svg></button>
     </div>
   </header>
 
@@ -337,11 +328,11 @@
 
     <div class="cols">
       <section class="section" aria-labelledby="holdH" data-tab="home">
-        <div class="sh"><h2 id="holdH">Holding now</h2><span>tap a coin for its chart</span></div>
+        <div class="sh"><h2 id="holdH">Holding now</h2></div>
         <div class="hold" id="hold"><div class="sk-card"><span class="sk c"></span><span class="sk" style="height:14px;width:50%"></span><span class="sk" style="height:22px;grid-row:1/span 2;grid-column:3"></span><span class="sk" style="height:11px;width:70%"></span></div></div>
       </section>
       <section class="section" aria-labelledby="actH" data-tab="trades">
-        <div class="sh"><h2 id="actH">Activity</h2><span>tap a trade for its chart</span></div>
+        <div class="sh"><h2 id="actH">Activity</h2></div>
         <ol class="feed" id="feed"><li class="sk-card" style="box-shadow:none"><span class="sk c"></span><span class="sk" style="height:14px;width:55%"></span><span class="sk" style="height:18px;grid-row:1/span 2;grid-column:3"></span><span class="sk" style="height:11px;width:40%"></span></li><li class="sk-card" style="box-shadow:none"><span class="sk c"></span><span class="sk" style="height:14px;width:45%"></span><span class="sk" style="height:18px;grid-row:1/span 2;grid-column:3"></span><span class="sk" style="height:11px;width:35%"></span></li></ol>
       </section>
     </div>
@@ -1021,7 +1012,7 @@
   function applyTheme() {
     if (cfg.theme === 'auto') delete document.documentElement.dataset.theme; else document.documentElement.dataset.theme = cfg.theme;
     const themeLabel = { auto: 'Theme: auto', light: 'Theme: light', dark: 'Theme: dark' }[cfg.theme];
-    $('themeBtn').querySelector('.lbl').textContent = themeLabel; $('themeBtn').setAttribute('aria-label', themeLabel);
+    $('themeBtn').title = themeLabel; $('themeBtn').setAttribute('aria-label', themeLabel);
     const bg = css('--bg');
     document.querySelectorAll('meta[name="theme-color"]').forEach((m) => { if (cfg.theme === 'auto') m.setAttribute('content', m.media.includes('dark') ? '#0b0d17' : '#f3f4f8'); else m.setAttribute('content', bg); });
     if (wChart) wChart.applyOptions(walletChartTheme());
@@ -1033,7 +1024,7 @@
   applyTheme();
 
   if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});
-  const paintSound = () => { $('soundBtn').setAttribute('aria-pressed', cfg.sound ? 'true' : 'false'); const label = cfg.sound ? 'Sound on' : 'Sound off'; $('soundBtn').querySelector('.lbl').textContent = label; $('soundBtn').setAttribute('aria-label', label); };
+  const paintSound = () => { $('soundBtn').setAttribute('aria-pressed', cfg.sound ? 'true' : 'false'); const label = cfg.sound ? 'Sound on' : 'Sound off'; $('soundBtn').title = label; $('soundBtn').setAttribute('aria-label', label); };
   $('soundBtn').addEventListener('click', () => { cfg.sound = !cfg.sound; store.set('sound', cfg.sound); paintSound(); if (cfg.sound) beep('win'); });
   const paintUnit = () => { $('unitSol').setAttribute('aria-pressed', cfg.unit === 'SOL' ? 'true' : 'false'); $('unitUsd').setAttribute('aria-pressed', cfg.unit === 'USD' ? 'true' : 'false'); };
   const setUnit = (u) => { cfg.unit = u; store.set('unit', u); paintUnit(); if (running) renderAll(); };

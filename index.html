@@ -56,10 +56,13 @@
     --shadow: 0 0 0 1px rgba(255, 255, 255, .04), 0 8px 28px rgba(0, 0, 0, .35); --on-ink: #0b0d17; --scrim: rgba(0, 0, 0, .6);
     color-scheme: dark;
   }
-  * { box-sizing: border-box; }
-  html, body { margin: 0; overflow-x: hidden; -webkit-text-size-adjust: 100%; touch-action: manipulation; background: var(--bg); color: var(--ink); font-family: var(--font); font-size: 15px; -webkit-font-smoothing: antialiased; }
-  body { padding: max(16px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) 48px max(16px, env(safe-area-inset-left, 0px)); }
-  .app { max-width: 1120px; margin: 0 auto; display: grid; grid-template-columns: minmax(0, 1fr); gap: 18px; }
+  * { box-sizing: border-box; scrollbar-width: none; }
+  *::-webkit-scrollbar { display: none; }
+  /* App shell: the page itself never scrolls, only the panels inside it do. */
+  html, body { margin: 0; height: 100%; overflow: hidden; overscroll-behavior: none; -webkit-text-size-adjust: 100%; -webkit-tap-highlight-color: transparent; touch-action: manipulation; background: var(--bg); color: var(--ink); font-family: var(--font); font-size: 15px; -webkit-font-smoothing: antialiased; }
+  .app { height: 100vh; height: 100dvh; max-width: 1440px; margin: 0 auto; display: flex; flex-direction: column; gap: 14px; padding: max(14px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) max(14px, env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px)); }
+  .top, .banner { flex: none; }
+  #dash { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; display: grid; grid-template-columns: minmax(0, 1fr); align-content: start; gap: 18px; margin: 0 -16px; padding: 2px 16px 8px; }
   .num { font-variant-numeric: tabular-nums; }
   .gain { color: var(--gain); } .loss { color: var(--loss); }
   button { font: inherit; color: inherit; cursor: pointer; border: 0; background: none; }
@@ -67,7 +70,10 @@
   [hidden] { display: none !important; }
 
   .top { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
-  .me { display: flex; align-items: center; gap: 12px; }
+  .me { display: flex; align-items: center; gap: 12px; min-width: 0; }
+  .me > div:last-child { min-width: 0; }
+  .me .live { display: flex; min-width: 0; }
+  #liveText { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .me .face { width: 42px; height: 42px; border-radius: 50%; background: var(--ink); color: var(--on-ink); display: grid; place-items: center; font-weight: 800; font-size: 18px; }
   .me h1 { margin: 0; font-size: 19px; font-weight: 800; letter-spacing: -.01em; }
   .live { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; color: var(--muted); }
@@ -81,6 +87,7 @@
   .seg button[aria-pressed="true"] { background: var(--ink); color: var(--on-ink); }
   .pill { background: var(--card); box-shadow: var(--shadow); border-radius: 999px; padding: 8px 14px; font-size: 13px; font-weight: 600; color: var(--muted); }
   .pill[aria-pressed="true"] { color: var(--ink); }
+  .pill svg { display: none; width: 18px; height: 18px; }
 
   .wallet { background: radial-gradient(120% 90% at 100% 0%, var(--glow, transparent), transparent 62%), var(--card); transition: background .6s ease; border-radius: var(--r-lg); box-shadow: var(--shadow); padding: 22px 22px 10px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; min-width: 0; }
   .wallet .label { font-size: 13px; font-weight: 600; color: var(--muted); }
@@ -151,21 +158,21 @@
   @keyframes fade { from { opacity: 0; } }
   .sheet { position: fixed; z-index: 21; background: var(--card); box-shadow: 0 20px 60px rgba(18,21,39,.25); display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto auto minmax(0, 1fr); gap: 14px; padding: 20px; overflow: hidden;
     right: max(16px, env(safe-area-inset-right, 0px)); top: max(16px, env(safe-area-inset-top, 0px)); bottom: max(16px, env(safe-area-inset-bottom, 0px)); width: min(620px, calc(100% - 32px)); border-radius: var(--r-lg); animation: rise .25s cubic-bezier(.2,.8,.2,1); }
-  @media (max-width: 700px) { .sheet { left: 0; right: 0; bottom: 0; top: auto; width: 100%; height: 88vh; border-radius: var(--r-lg) var(--r-lg) 0 0; padding-bottom: max(20px, env(safe-area-inset-bottom, 0px)); } }
+  @media (max-width: 700px) { .sheet { left: 0; right: 0; bottom: 0; top: auto; width: 100%; height: 88vh; height: 88dvh; border-radius: var(--r-lg) var(--r-lg) 0 0; padding-bottom: max(20px, env(safe-area-inset-bottom, 0px)); } }
   @keyframes rise { from { transform: translateY(20px); opacity: 0; } }
   .sheet .hd { display: flex; align-items: center; gap: 12px; }
   .sheet .hd .t { flex: 1; min-width: 0; }
   .sheet .hd h3 { margin: 0; font-size: 20px; font-weight: 800; overflow-wrap: anywhere; }
   .sheet .hd .p { font-size: 14px; color: var(--muted); }
   .close { width: 36px; height: 36px; border-radius: 50%; background: var(--soft); font-size: 20px; line-height: 1; color: var(--muted); }
-  .cchart { height: 320px; min-width: 0; overflow: hidden; }
+  .cchart { height: clamp(190px, 38vh, 320px); min-width: 0; overflow: hidden; }
   .cnote { font-size: 12px; color: var(--muted); margin-top: 6px; }
   .clist { overflow: auto; display: grid; gap: 6px; align-content: start; }
   .crow { display: flex; justify-content: space-between; gap: 10px; background: var(--soft); border-radius: var(--r-sm); padding: 10px 12px; font-size: 14px; flex-wrap: wrap; }
   .crow b { font-weight: 700; }
   .ext { color: var(--accent); font-weight: 700; font-size: 13px; text-decoration: none; padding: 6px 2px; }
 
-  .setup { background: var(--card); border-radius: var(--r-lg); box-shadow: var(--shadow); padding: 24px; display: grid; gap: 16px; max-width: 620px; }
+  .setup { background: var(--card); border-radius: var(--r-lg); box-shadow: var(--shadow); padding: 24px; display: grid; gap: 16px; width: 100%; max-width: 620px; margin: 0 auto; flex: 0 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
   .setup h2 { margin: 0; font-size: 24px; font-weight: 800; letter-spacing: -.01em; }
   .setup p { margin: 0; color: var(--muted); line-height: 1.5; }
   .field { display: grid; gap: 6px; }
@@ -211,8 +218,38 @@
   /* bottom tab bar on phones */
   .tabbar { display: none; }
   .tab-badge { position: absolute; top: 2px; left: calc(50% + 6px); min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; background: var(--loss); color: #fff; font-size: 11px; font-weight: 800; display: grid; place-items: center; }
+  /* wide screens: everything on one screen, the two lists scroll on their own */
+  @media (min-width: 861px) and (min-height: 600px) {
+    #dash { overflow: hidden; align-content: stretch; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) auto auto; gap: 14px 18px; }
+    .wallet { grid-column: 1; grid-row: 1; min-height: 0; grid-template-rows: auto auto auto minmax(0, 1fr) auto; }
+    .wchart { height: auto; min-height: 0; }
+    .stats { grid-column: 1; grid-row: 2; }
+    .cols { grid-column: 2; grid-row: 1 / span 2; min-height: 0; grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) minmax(0, 1fr); align-items: stretch; gap: 14px; }
+    .section { min-height: 0; grid-template-rows: auto minmax(0, 1fr); }
+    .hold, .feed { min-height: 0; max-height: none; overflow-y: auto; overscroll-behavior: contain; align-content: start; }
+    .hold { margin: 0 -4px; padding: 2px 4px 6px; }
+    .foot { grid-column: 1 / -1; grid-row: 3; }
+  }
+
   @media (max-width: 700px) {
-    body { padding-bottom: calc(92px + env(safe-area-inset-bottom, 0px)); }
+    .app { gap: 10px; padding-bottom: calc(66px + env(safe-area-inset-bottom, 0px)); }
+    #dash { gap: 12px; padding-bottom: 12px; }
+    .top { flex-wrap: nowrap; }
+    .tools { flex: none; flex-wrap: nowrap; gap: 6px; }
+    .me { gap: 10px; }
+    .me .face { width: 36px; height: 36px; font-size: 16px; flex: none; }
+    .me h1 { font-size: 17px; }
+    .seg button { padding: 6px 10px; }
+    .pill { width: 36px; height: 36px; padding: 0; display: grid; place-items: center; }
+    .pill svg { display: block; }
+    .pill .lbl { display: none; }
+    .cols { gap: 12px; }
+    .setup { padding: 18px; gap: 12px; }
+    .stats { gap: 8px; }
+    .stat { padding: 10px 12px; gap: 2px; }
+    .stat .v { font-size: 17px; }
+    .stats .stat:first-child { grid-template-columns: minmax(0, 1fr) auto; column-gap: 12px; align-items: center; }
+    .stats .stat:first-child .v { grid-column: 2; grid-row: 1 / span 2; }
     .tabbar { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); position: fixed; left: 0; right: 0; bottom: 0; z-index: 15;
       background: var(--card); background: color-mix(in srgb, var(--card) 86%, transparent); -webkit-backdrop-filter: blur(18px) saturate(1.6); backdrop-filter: blur(18px) saturate(1.6);
       border-top: 1px solid var(--line); padding: 6px 8px max(8px, env(safe-area-inset-bottom, 0px)); }
@@ -222,11 +259,14 @@
     #settingsBtn { display: none; }
     body[data-view="home"] [data-tab="trades"], body[data-view="trades"] [data-tab="home"] { display: none !important; }
     .feed { max-height: none; }
-    .wallet { padding: 20px 18px 8px; }
-    .wchart { height: 210px; }
-    .tf button { padding: 9px 16px; }
+    .wallet { padding: 14px 14px 4px; gap: 8px; }
+    .wallet .value { font-size: 34px; }
+    .wchart { height: clamp(120px, 22vh, 210px); }
+    .tf { padding-bottom: 4px; }
+    .tf button { padding: 7px 16px; }
     .hcard, .act { min-height: 60px; }
   }
+  @media (max-width: 360px) { .me .face { display: none; } }
   @media (display-mode: standalone) { .foot { display: none; } }
   @media (prefers-reduced-motion: reduce) { .act.fresh, .hcard.up, .hcard.down, .live.on i, .sheet, .scrim, .toast, .sk, .radar::before, .radar::after { animation: none; } .hcard .bar b { transition: none; } }
 </style>
@@ -243,8 +283,8 @@
     </div>
     <div class="tools">
       <div class="seg" role="group" aria-label="Show amounts in"><button id="unitSol" aria-pressed="true">SOL</button><button id="unitUsd" aria-pressed="false">USD</button></div>
-      <button class="pill" id="soundBtn" aria-pressed="false">Sound off</button>
-      <button class="pill" id="themeBtn">Auto</button>
+      <button class="pill" id="soundBtn" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5L6 9H3v6h3l5 4z"/><path d="M15.5 9a4 4 0 0 1 0 6"/></svg><span class="lbl">Sound off</span></button>
+      <button class="pill" id="themeBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 1 0 18z" fill="currentColor"/></svg><span class="lbl">Auto</span></button>
       <button class="pill" id="settingsBtn">Settings</button>
     </div>
   </header>
@@ -275,7 +315,7 @@
     </div>
   </section>
 
-  <main id="dash" hidden style="display:grid;grid-template-columns:minmax(0,1fr);gap:18px">
+  <main id="dash" hidden>
     <section class="wallet" id="walletCard" aria-label="Wallet value" data-tab="home">
       <span class="label">Wallet value</span>
       <span class="value num" id="total"><span class="sk" style="width:min(240px,70%);height:46px"></span></span>
@@ -926,7 +966,7 @@
     const same = view === v; view = v;
     if (v === 'trades') { unseen = 0; paintBadge(); }
     paintTabs();
-    scrollTo({ top: 0, behavior: same || reduceMotion.matches ? 'auto' : 'instant' });
+    $('dash').scrollTo({ top: 0, behavior: same || reduceMotion.matches ? 'auto' : 'instant' });
     if (v === 'home' && wChart) wChart.timeScale().fitContent();
   }
   document.querySelectorAll('.tabbar button').forEach((b) => b.addEventListener('click', () => go(b.dataset.go)));
@@ -936,7 +976,7 @@
   if (standalone) {
     let y0 = null, dy = 0;
     const ptr = $('ptr');
-    addEventListener('touchstart', (e) => { y0 = scrollY <= 0 && $('sheet').hidden ? e.touches[0].clientY : null; dy = 0; }, { passive: true });
+    addEventListener('touchstart', (e) => { y0 = $('dash').scrollTop <= 0 && $('sheet').hidden ? e.touches[0].clientY : null; dy = 0; }, { passive: true });
     addEventListener('touchmove', (e) => {
       if (y0 == null) return;
       dy = Math.max(0, e.touches[0].clientY - y0);
@@ -980,7 +1020,8 @@
   const darkMQ = matchMedia('(prefers-color-scheme: dark)');
   function applyTheme() {
     if (cfg.theme === 'auto') delete document.documentElement.dataset.theme; else document.documentElement.dataset.theme = cfg.theme;
-    $('themeBtn').textContent = { auto: 'Theme: auto', light: 'Theme: light', dark: 'Theme: dark' }[cfg.theme];
+    const themeLabel = { auto: 'Theme: auto', light: 'Theme: light', dark: 'Theme: dark' }[cfg.theme];
+    $('themeBtn').querySelector('.lbl').textContent = themeLabel; $('themeBtn').setAttribute('aria-label', themeLabel);
     const bg = css('--bg');
     document.querySelectorAll('meta[name="theme-color"]').forEach((m) => { if (cfg.theme === 'auto') m.setAttribute('content', m.media.includes('dark') ? '#0b0d17' : '#f3f4f8'); else m.setAttribute('content', bg); });
     if (wChart) wChart.applyOptions(walletChartTheme());
@@ -992,7 +1033,7 @@
   applyTheme();
 
   if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});
-  const paintSound = () => { $('soundBtn').setAttribute('aria-pressed', cfg.sound ? 'true' : 'false'); $('soundBtn').textContent = cfg.sound ? 'Sound on' : 'Sound off'; };
+  const paintSound = () => { $('soundBtn').setAttribute('aria-pressed', cfg.sound ? 'true' : 'false'); const label = cfg.sound ? 'Sound on' : 'Sound off'; $('soundBtn').querySelector('.lbl').textContent = label; $('soundBtn').setAttribute('aria-label', label); };
   $('soundBtn').addEventListener('click', () => { cfg.sound = !cfg.sound; store.set('sound', cfg.sound); paintSound(); if (cfg.sound) beep('win'); });
   const paintUnit = () => { $('unitSol').setAttribute('aria-pressed', cfg.unit === 'SOL' ? 'true' : 'false'); $('unitUsd').setAttribute('aria-pressed', cfg.unit === 'USD' ? 'true' : 'false'); };
   const setUnit = (u) => { cfg.unit = u; store.set('unit', u); paintUnit(); if (running) renderAll(); };

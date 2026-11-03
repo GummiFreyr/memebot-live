@@ -67,7 +67,9 @@
   [hidden] { display: none !important; }
 
   .top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-  .me { display: flex; align-items: center; min-width: 0; }
+  .me { display: flex; align-items: center; gap: 10px; min-width: 0; }
+  .logo { flex: none; width: 34px; height: 34px; color: var(--ink); }
+  .logo .face { fill: var(--bg); } .logo .mark { fill: none; stroke: var(--bg); stroke-width: 5.2; stroke-linecap: round; }
   .me h1 { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip-path: inset(50%); }
   .live { display: flex; align-items: center; gap: 7px; min-width: 0; font-size: 14px; font-weight: 600; color: var(--muted); cursor: pointer; }
   #liveText { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -101,6 +103,10 @@
   @media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) .bub.win { background: #e7f8ee; } }
   .bpt { position: absolute; left: -5px; top: -5px; z-index: 2; width: 10px; height: 10px; border-radius: 50%; border: 2px solid var(--gain); background: var(--bg); pointer-events: none; }
   .bpt.lose { border-color: var(--loss); }
+  .tdot { position: absolute; left: -4px; top: -4px; z-index: 2; width: 8px; height: 8px; border-radius: 50%; pointer-events: none; }
+  .tdot.buy { background: var(--bg); border: 2px solid var(--accent); } .tdot.win { background: var(--gain); } .tdot.lose { background: var(--loss); }
+  .wnote { position: absolute; left: 16px; bottom: 12px; z-index: 3; font-size: 13px; color: var(--muted); background: var(--bg); background: color-mix(in srgb, var(--bg) 80%, transparent); border-radius: 999px; padding: 5px 11px; }
+  .wnote b { color: var(--accent); font-weight: 600; }
   .tf { display: flex; justify-content: space-between; gap: 4px; padding-bottom: 14px; border-bottom: 1px solid var(--line); }
   .tf button { display: inline-flex; align-items: center; gap: 6px; font-size: 16px; font-weight: 700; color: var(--accent); padding: 7px 12px; border-radius: 999px; }
   .tf button[aria-pressed="true"] { background: var(--accent); color: #fff; }
@@ -275,6 +281,7 @@
 <div class="app">
   <header class="top">
     <div class="me">
+      <svg class="logo" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="9" fill="currentColor"/><path class="mark" d="M11.5 22.5 21.5 9.5"/><circle class="face" cx="21.6" cy="21.4" r="2.6"/></svg>
       <h1>Memebot</h1>
       <span class="live" id="live"><i></i><span id="liveText">Connecting</span></span>
     </div>
@@ -477,6 +484,29 @@
 
   // coins DexScreener has no name, picture or pool for: ask GeckoTerminal, once per coin each time the app opens
   const GECKO = 'https://api.geckoterminal.com/api/v2/networks/solana';
+  // GeckoTerminal allows about 30 requests a minute, so a "slow down" answer waits and tries again, and answers are remembered.
+  // Background lookups queue up one at a time; what you tap on goes straight through.
+  const geckoCache = new Map();
+  let geckoQueue = Promise.resolve();
+  function gecko(path, background = false) {
+    if (geckoCache.has(path)) return Promise.resolve(geckoCache.get(path));
+    const run = async () => {
+      for (let i = 0; i < 5; i++) {
+        const r = await fetch(GECKO + path, { headers: { Accept: 'application/json' } }).catch(() => null);
+        // its "slow down" answer can arrive without the header browsers need, which looks like a network error: wait and retry both
+        if (!r || r.status === 429) { await sleep(2500 * (i + 1)); continue; }
+        if (!r.ok) return null;
+        const j = await r.json().catch(() => null);
+        if (j) geckoCache.set(path, j);
+        return j;
+      }
+      return null;
+    };
+    if (!background) return run();
+    const p = geckoQueue.then(run, run);
+    geckoQueue = p.catch(() => {});
+    return p;
+  }
   const askedDex = new Set(), askedGecko = new Set();
   let filling = false;
   async function fillMeta(mints) {
@@ -490,16 +520,16 @@
         const had = meta[a] || {};
         if ((had.symbol && had.icon && had.pool) || askedGecko.has(a)) continue;
         askedGecko.add(a);
-        const r = await fetch(`${GECKO}/tokens/${a}`, { headers: { Accept: 'application/json' } }).catch(() => null);
-        if (r && r.ok) {
-          const d = (await r.json()).data, t = d.attributes;
+        const j = await gecko(`/tokens/${a}`, true);
+        if (j && j.data) {
+          const d = j.data, t = d.attributes;
           const top = d.relationships && d.relationships.top_pools && d.relationships.top_pools.data[0];
           const old = meta[a] || {};   // a price update may have written this coin while the request ran
           meta[a] = { ...old, symbol: old.symbol || t.symbol || '', name: old.name || t.name || '', icon: old.icon || (/^https:/.test(t.image_url || '') ? t.image_url : ''), pool: old.pool || (top ? top.id.replace(/^solana_/, '') : ''), url: old.url || '' };
           store.set('meta2', meta);
           if (solBal != null) renderAll();
-        } else if (r && r.status === 429) askedGecko.delete(a);
-        await sleep(2200);   // GeckoTerminal allows about 30 requests a minute
+        } else askedGecko.delete(a);
+        await sleep(2200);   // leave room under the limit for the charts you open
       }
     } finally { filling = false; }
   }
@@ -646,8 +676,10 @@
     grid: { vertLines: { visible: false }, horzLines: { visible: false } },
     crosshair: { horzLine: { visible: false, labelVisible: false }, vertLine: { color: css('--line'), width: 1, style: 0, labelVisible: false } },
   });
-  let wChart = null, wSeries = null, wBase = null, wData = [], wBubbles = [];
+  let wChart = null, wSeries = null, wBase = null, wData = [], wBubbles = [], wDots = [];
   const wDot = make('div', 'wdot');
+  const wNote = make('button', 'wnote'); wNote.type = 'button'; wNote.hidden = true;
+  wNote.addEventListener('click', () => { const all = document.querySelector('.tf button[data-tf="0"]'); if (all) all.click(); });
   function ensureWalletChart() {
     if (wChart || !LWC) return;
     wChart = LWC.createChart($('wchart'), {
@@ -658,7 +690,7 @@
       handleScroll: false, handleScale: false,
     });
     wSeries = wChart.addAreaSeries({ lineWidth: 2, priceLineVisible: false, lastValueVisible: false, crosshairMarkerRadius: 4 });
-    $('wchart').append(wDot);
+    $('wchart').append(wDot, wNote);
     try { new ResizeObserver(() => { if (wChart) { wChart.timeScale().fitContent(); requestAnimationFrame(placeWallet); } }).observe($('wchart')); } catch {}
   }
   // the glowing dot at the latest value and the trade bubbles, kept on their points
@@ -669,6 +701,11 @@
     const [lx, ly] = xy(wData[wData.length - 1]);
     wDot.hidden = lx == null || ly == null;
     if (!wDot.hidden) wDot.style.transform = `translate(${lx}px, ${ly}px)`;
+    wDots.forEach((d) => {
+      const [x, y] = xy(d.p);
+      d.el.hidden = x == null || y == null;
+      if (!d.el.hidden) d.el.style.transform = `translate(${x}px, ${y}px)`;
+    });
     const used = [];
     wBubbles.slice().reverse().forEach((b) => {
       const [x, y] = xy(b.p);
@@ -711,9 +748,20 @@
       if (wBase) wSeries.removePriceLine(wBase);
       wBase = wData.length ? wSeries.createPriceLine({ price: wData[0].value, color: alpha(css('--muted').startsWith('#') ? css('--muted') : '#8e8e93', 0.7), lineWidth: 1, lineStyle: 1, axisLabelVisible: false }) : null;
       wChart.timeScale().fitContent();
-      // bubbles for the latest few sells in the range: +$38 for a win, −7% · −$2.98 for a loss
+      // a dot for every trade in the range (blue ring for a buy, green or red for a sell),
+      // and bubbles for the latest few sells: +$38 for a win, −7% · −$2.98 for a loss
       wBubbles.forEach((b) => { b.el.remove(); b.pt.remove(); });
+      wDots.forEach((d) => d.el.remove());
       const byTime = new Map(wData.map((p) => [p.time, p]));
+      const inView = m.evs.filter((e) => (e.side === 'BUY' || e.side === 'SELL') && byTime.has(e.ts + TZ));
+      wDots = inView.slice(-80).map((e) => {
+        const el = make('div', 'tdot ' + (e.side === 'BUY' ? 'buy' : (e.pnl ?? 0) > 0 ? 'win' : 'lose'));
+        $('wchart').append(el);
+        return { el, p: byTime.get(e.ts + TZ) };
+      });
+      const lastTrade = m.evs.filter((e) => e.side === 'BUY' || e.side === 'SELL').pop();
+      wNote.hidden = !!inView.length || !lastTrade || !cfg.tf;
+      if (!wNote.hidden) { wNote.replaceChildren('No trades in this range · last one ' + ago(lastTrade.ts) + ' · ', make('b', '', 'show all')); }
       wBubbles = m.rounds.filter((r) => byTime.has(r.ts + TZ)).slice(-3).map((r) => {
         const win = r.pnl > 0;
         const el = make('div', 'bub ' + (win ? 'win' : 'lose'));
@@ -919,11 +967,12 @@
       Object.assign(sheetInfo, { price: Number(p.priceUsd), mc: p.marketCap || p.fdv, liq: p.liquidity && p.liquidity.usd, vol: p.volume && p.volume.h24, created: p.pairCreatedAt ? p.pairCreatedAt / 1000 : null, name: p.baseToken && p.baseToken.name });
       paintSheet();
     }).catch(() => {});
-    fetch(`${GECKO}/tokens/${mint}/info`, { headers: { Accept: 'application/json' } }).then((r) => (r.ok ? r.json() : null)).then((j) => {
+    await drawCoinChart(mint, trades);
+    // holders last, so the chart gets the first turn at GeckoTerminal
+    gecko(`/tokens/${mint}/info`).then((j) => {
       const h = j && j.data && j.data.attributes && j.data.attributes.holders;
       if (h && h.count != null && sheetMint === mint) { sheetInfo.holders = h.count; paintSheet(); }
     }).catch(() => {});
-    await drawCoinChart(mint, trades);
   }
   async function drawCoinChart(mint, trades) {
     if (cChart) { cChart.remove(); cChart = null; }
@@ -946,22 +995,28 @@
     const span = Math.max(to - from, 60);
     const agg = span <= 45 * 60 ? 1 : span <= 4 * 3600 ? 5 : 15, step = agg * 60;
     const pad = Math.max(span * 0.6, 12 * step);
-    const pool = meta[mint] && meta[mint].pool;
+    $('cnote').textContent = 'Loading chart…';
+    const chart = cChart;
+    let pool = meta[mint] && meta[mint].pool;
+    if (!pool) {   // a coin DexScreener doesn't list: find its pool on GeckoTerminal
+      const j = await gecko(`/tokens/${mint}`);
+      const top = j && j.data && j.data.relationships && j.data.relationships.top_pools && j.data.relationships.top_pools.data[0];
+      if (top) { pool = top.id.replace(/^solana_/, ''); meta[mint] = { ...(meta[mint] || {}), pool }; store.set('meta2', meta); }
+    }
     const until = Math.min(nowS, Math.ceil(to + pad + 60 * step));   // a little extra on each side to drag through
     const ohlcv = async (currency) => {
-      const r = await fetch(`${GECKO}/pools/${pool}/ohlcv/minute?aggregate=${agg}&limit=300&currency=${currency}&before_timestamp=${until}`, { headers: { Accept: 'application/json' } });
-      if (!r.ok) return null;
-      return ((await r.json()).data.attributes.ohlcv_list || []).map((c) => ({ time: c[0] + TZ, open: +c[1], high: +c[2], low: +c[3], close: +c[4], volume: +c[5] }))
+      const j = await gecko(`/pools/${pool}/ohlcv/minute?aggregate=${agg}&limit=300&currency=${currency}&before_timestamp=${until}`);
+      if (!j || !j.data) return null;
+      return (j.data.attributes.ohlcv_list || []).map((c) => ({ time: c[0] + TZ, open: +c[1], high: +c[2], low: +c[3], close: +c[4], volume: +c[5] }))
         .sort((x, y) => x.time - y.time).filter((c, i, a) => i === 0 || c.time > a[i - 1].time);
     };
-    let candles = null, inSol = null;
-    if (pool) {
-      // the same candles priced in SOL turn the bot's SOL fill prices into dollar prices at the time of each trade
-      [candles, inSol] = await Promise.all([ohlcv('usd').catch(() => null), ohlcv('token').catch(() => null)]);
-    }
-    if (sheetMint !== mint || !cChart) return;
+    // dollar candles first so the chart shows quickly; the same candles priced in SOL come next,
+    // and turn the bot's SOL fill prices into dollar prices at the time of each trade
+    const candles = pool ? await ohlcv('usd') : null;
+    if (sheetMint !== mint || cChart !== chart) return;
     if (candles && candles.length) {
       const near = (list, ts) => list.reduce((best, c) => (Math.abs(c.time - ts - TZ) < Math.abs(best.time - ts - TZ) ? c : best));
+      let inSol = null;
       const usdAt = (e) => {
         if (!inSol || !inSol.length) return null;
         const cu = near(candles, e.ts), cs = inSol.find((c) => c.time === cu.time);
@@ -972,14 +1027,18 @@
       const vol = cChart.addHistogramSeries({ priceScaleId: 'vol', priceFormat: { type: 'volume' }, lastValueVisible: false, priceLineVisible: false });
       cChart.priceScale('vol').applyOptions({ scaleMargins: { top: 0.8, bottom: 0 } });
       vol.setData(candles.map((c) => ({ time: c.time, value: c.volume, color: alpha(c.close >= c.open ? G : L, 0.55) })));
-      // dashed lines: where the bot bought, where it sold, and its stop while the coin is still held
-      const entry = b ? usdAt(b) : null, exit = t && t.side === 'SELL' ? usdAt(t) : null;
       const open = t && t.side === 'BUY' && model().lastBuy[mint] === t;
       series.applyOptions({ lastValueVisible: !!open });   // the last candle is only today's price while the coin is still held
-      if (entry) series.createPriceLine({ price: entry, color: A, lineWidth: 1, lineStyle: 2, axisLabelVisible: true, title: 'Bot buy' });
-      if (exit) series.createPriceLine({ price: exit, color: t.pnl > 0 ? G : L, lineWidth: 1, lineStyle: 2, axisLabelVisible: true, title: 'Bot sell' });
-      if (open && entry) series.createPriceLine({ price: entry * (1 + STOP), color: css('--warn'), lineWidth: 1, lineStyle: 2, axisLabelVisible: true, title: 'Stop' });
-      if (entry) { sheetInfo.entry = entry; paintSheet(); }
+      // dashed lines: where the bot bought, where it sold, and its stop while the coin is still held
+      ohlcv('token').then((list) => {
+        if (sheetMint !== mint || cChart !== chart || !list) return;
+        inSol = list;
+        const entry = b ? usdAt(b) : null, exit = t && t.side === 'SELL' ? usdAt(t) : null;
+        if (entry) series.createPriceLine({ price: entry, color: A, lineWidth: 1, lineStyle: 2, axisLabelVisible: true, title: 'Bot buy' });
+        if (exit) series.createPriceLine({ price: exit, color: t.pnl > 0 ? G : L, lineWidth: 1, lineStyle: 2, axisLabelVisible: true, title: 'Bot sell' });
+        if (open && entry) series.createPriceLine({ price: entry * (1 + STOP), color: css('--warn'), lineWidth: 1, lineStyle: 2, axisLabelVisible: true, title: 'Stop' });
+        if (entry) { sheetInfo.entry = entry; paintSheet(); }
+      }).catch(() => {});
       // green B and red S tags on the candles nearest each trade: B just under its candle, S just over it
       const inRange = (ts) => ts + TZ >= candles[0].time - step && ts + TZ <= candles[candles.length - 1].time + step;
       const tags = trades.filter((e) => inRange(e.ts)).map((e) => {
@@ -990,7 +1049,6 @@
       });
       $('cnote').textContent = step / 60 + '-minute candles from GeckoTerminal';
       cChart.timeScale().setVisibleRange({ from: from - pad + TZ, to: Math.min(nowS, to + pad) + TZ });
-      const chart = cChart;
       const place = () => {
         if (cChart !== chart) return;
         const width = chart.timeScale().width();
@@ -1002,6 +1060,13 @@
         requestAnimationFrame(place);
       };
       place();
+    } else if (pool && candles === null) {
+      // GeckoTerminal is still saying "slow down": keep trying by itself while this coin stays open, or right away on a tap
+      $('cnote').replaceChildren('GeckoTerminal is busy, trying again in a moment… ');
+      const again = make('button', 'ext', 'Try now'); again.type = 'button';
+      again.addEventListener('click', () => drawCoinChart(mint, trades));
+      $('cnote').append(again);
+      setTimeout(() => { if (sheetMint === mint && cChart === chart) drawCoinChart(mint, trades); }, 8000);
     } else {
       const pts = (trails[mint] || []).map(([ts, p]) => ({ time: ts + TZ, value: p }))
         .sort((x, y) => x.time - y.time).filter((p, i, a) => i === 0 || p.time > a[i - 1].time);

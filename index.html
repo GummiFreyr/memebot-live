@@ -103,7 +103,11 @@
   @media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) .bub.win { background: #e7f8ee; } }
   .bpt { position: absolute; left: -5px; top: -5px; z-index: 2; width: 10px; height: 10px; border-radius: 50%; border: 2px solid var(--gain); background: var(--bg); pointer-events: none; }
   .bpt.lose { border-color: var(--loss); }
-  .tdot { position: absolute; left: -4px; top: -4px; z-index: 2; width: 8px; height: 8px; border-radius: 50%; pointer-events: none; }
+  .tdot { position: absolute; left: -4px; top: -4px; z-index: 2; width: 8px; height: 8px; border-radius: 50%; pointer-events: none; transition: box-shadow .12s ease; }
+  .tdot.on { box-shadow: 0 0 0 4px rgba(10, 132, 255, .35); }
+  .wtip { position: absolute; left: 0; top: 0; z-index: 4; display: grid; grid-template-columns: auto auto auto; gap: 10px; align-items: center; text-align: left; background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 8px 12px 8px 8px; box-shadow: 0 10px 30px rgba(0, 0, 0, .35); white-space: nowrap; animation: fade .12s ease; }
+  .wtip .tt { font-size: 15px; font-weight: 600; } .wtip .ts { font-size: 12px; color: var(--muted); }
+  .wtip .tv { text-align: right; font-size: 15px; font-weight: 700; } .wtip .tv small { display: block; font-size: 12px; font-weight: 500; }
   .tdot.buy { background: var(--bg); border: 2px solid var(--accent); } .tdot.win { background: var(--gain); } .tdot.lose { background: var(--loss); }
   .wnote { position: absolute; left: 16px; bottom: 12px; z-index: 3; font-size: 13px; color: var(--muted); background: var(--bg); background: color-mix(in srgb, var(--bg) 80%, transparent); border-radius: 999px; padding: 5px 11px; }
   .wnote b { color: var(--accent); font-weight: 600; }
@@ -613,6 +617,12 @@
       txCache[s.signature] = ev;
       if (ev) fresh.push(ev);
     }
+    // keep the saved history from growing forever: past 1500 entries, the oldest go (never the ones just listed)
+    const keys = Object.keys(txCache);
+    if (keys.length > 1500) {
+      const listed = new Set(sigs.map((s) => s.signature));
+      keys.sort((a, b) => ((txCache[b] || {}).ts || 0) - ((txCache[a] || {}).ts || 0)).slice(1000).forEach((k) => { if (!listed.has(k)) delete txCache[k]; });
+    }
     store.set(cacheKey, txCache);
     return fresh;
   }
@@ -690,6 +700,34 @@
   const wDot = make('div', 'wdot');
   const wNote = make('button', 'wnote'); wNote.type = 'button'; wNote.hidden = true;
   wNote.addEventListener('click', () => { const all = document.querySelector('.tf button[data-tf="0"]'); if (all) all.click(); });
+  // the card that pops up for the trade dot nearest your finger or mouse; tapping it opens that coin
+  const wTip = make('button', 'wtip'); wTip.type = 'button'; wTip.hidden = true;
+  let tipSig = null, tipPinned = false, wMoved = false, wFitKey = '';
+  wTip.addEventListener('click', () => { const d = wDots.find((x) => x.e.sig === tipSig); if (d) openSheet(d.e.mint, d.e); });
+  function nearestDot(x) {
+    let best = null, bd = 18;   // within 18px of a dot
+    wDots.forEach((d) => { if (d.x != null && !d.el.hidden && Math.abs(d.x - x) < bd) { bd = Math.abs(d.x - x); best = d; } });
+    return best;
+  }
+  function showTip(d) {
+    wDots.forEach((x) => x.el.classList.toggle('on', x === d));
+    if (!d) { const was = !wTip.hidden; wTip.hidden = true; tipSig = null; if (was) requestAnimationFrame(placeWallet); return; }
+    wBubbles.forEach((b) => { b.el.hidden = b.pt.hidden = true; });   // the card takes over from the bubbles while it shows
+    const e = d.e, buy = e.side === 'BUY';
+    if (tipSig !== e.sig) {
+      tipSig = e.sig;
+      const t = make('div');
+      t.append(make('div', 'tt', (buy ? 'Bought ' : 'Sold ') + sym(e.mint)), make('div', 'ts', (!buy && e.held != null ? 'held ' + dur(e.held) + ' · ' : '') + stamp(e.ts)));
+      const v = make('div', 'tv num');
+      if (!buy && e.ret != null) { v.textContent = money(e.pnl, true); tone(v, e.pnl); v.append(make('small', '', pct(e.ret))); } else v.textContent = money(e.sol);
+      wTip.replaceChildren(avatar(e.mint, true), t, v);
+    }
+    wTip.hidden = false;
+    const w = $('wchart').clientWidth, tw = wTip.offsetWidth, th = wTip.offsetHeight;
+    const left = Math.max(6, Math.min(w - tw - 6, d.x - tw / 2));
+    const top = d.y - th - 14 >= 2 ? d.y - th - 14 : d.y + 14;
+    wTip.style.transform = `translate(${left}px, ${top}px)`;
+  }
   function ensureWalletChart() {
     if (wChart || !LWC) return;
     wChart = LWC.createChart($('wchart'), {
@@ -697,11 +735,25 @@
       ...walletChartTheme(),
       rightPriceScale: { visible: false, scaleMargins: { top: 0.28, bottom: 0.08 } },
       timeScale: { visible: false, fixLeftEdge: true, fixRightEdge: true, borderVisible: false },
-      handleScroll: false, handleScale: false,
+      // drag sideways and pinch or scroll to zoom; swiping up and down still scrolls the page
+      handleScroll: { mouseWheel: true, pressedMouseMove: true, horzTouchDrag: true, vertTouchDrag: false },
+      handleScale: { mouseWheel: true, pinch: true, axisPressedMouseMove: false, axisDoubleClickReset: false },
     });
     wSeries = wChart.addAreaSeries({ lineWidth: 2, priceLineVisible: false, lastValueVisible: false, crosshairMarkerRadius: 4 });
-    $('wchart').append(wDot, wNote);
-    try { new ResizeObserver(() => { if (wChart) { wChart.timeScale().fitContent(); requestAnimationFrame(placeWallet); } }).observe($('wchart')); } catch {}
+    $('wchart').append(wDot, wNote, wTip);
+    // once you've moved or zoomed the chart, the 5-second updates stop resetting it (until you pick another range)
+    ['pointerdown', 'wheel', 'touchstart'].forEach((ev) => $('wchart').addEventListener(ev, (e) => { if (!wTip.contains(e.target)) wMoved = true; }, { passive: true }));
+    // (the logical-range event, because the time-range one throws when it fires before the chart has a size)
+    wChart.timeScale().subscribeVisibleLogicalRangeChange(() => requestAnimationFrame(placeWallet));
+    wChart.subscribeCrosshairMove((p) => {
+      if (tipPinned) return;
+      showTip(p && p.point ? nearestDot(p.point.x) : null);
+    });
+    wChart.subscribeClick((p) => {
+      const d = p && p.point ? nearestDot(p.point.x) : null;
+      tipPinned = !!d; showTip(d);
+    });
+    try { new ResizeObserver(() => { if (wChart) { if (!wMoved) wChart.timeScale().fitContent(); requestAnimationFrame(placeWallet); } }).observe($('wchart')); } catch {}
   }
   // the glowing dot at the latest value and the trade bubbles, kept on their points
   function placeWallet() {
@@ -711,15 +763,19 @@
     const [lx, ly] = xy(wData[wData.length - 1]);
     wDot.hidden = lx == null || ly == null;
     if (!wDot.hidden) wDot.style.transform = `translate(${lx}px, ${ly}px)`;
+    const out = (x, y) => x == null || y == null || x < -6 || x > w + 6;   // scrolled out of view
+    wDot.hidden = wDot.hidden || out(lx, ly);
     wDots.forEach((d) => {
       const [x, y] = xy(d.p);
-      d.el.hidden = x == null || y == null;
+      d.x = x; d.y = y;
+      d.el.hidden = out(x, y);
       if (!d.el.hidden) d.el.style.transform = `translate(${x}px, ${y}px)`;
     });
+    if (tipSig) { const d = wDots.find((x) => x.e.sig === tipSig); if (d && !d.el.hidden) showTip(d); else { tipPinned = false; showTip(null); } }
     const used = [];
     wBubbles.slice().reverse().forEach((b) => {
       const [x, y] = xy(b.p);
-      const off = x == null || y == null;
+      const off = out(x, y) || !!tipSig;   // the pop-up card takes over while it's showing
       b.el.hidden = b.pt.hidden = off;
       if (off) return;
       b.pt.style.transform = `translate(${x}px, ${y}px)`;
@@ -758,7 +814,9 @@
       if (wBase) wSeries.removePriceLine(wBase);
       // dotted line at where the range started; for ALL, at your starting balance
       wBase = wData.length ? wSeries.createPriceLine({ price: cfg.tf ? wData[0].value : +(cfg.start * k).toFixed(usd() ? 2 : 5), color: alpha(css('--muted').startsWith('#') ? css('--muted') : '#8e8e93', 0.7), lineWidth: 1, lineStyle: 1, axisLabelVisible: false }) : null;
-      wChart.timeScale().fitContent();
+      const fitKey = cfg.tf + '|' + cfg.unit;
+      if (fitKey !== wFitKey) { wFitKey = fitKey; wMoved = false; tipPinned = false; tipSig = null; }
+      if (!wMoved) wChart.timeScale().fitContent();
       // a dot for every trade in the range (blue ring for a buy, green or red for a sell),
       // and bubbles for the latest few sells: +$38 for a win, −7% · −$2.98 for a loss
       wBubbles.forEach((b) => { b.el.remove(); b.pt.remove(); });
@@ -768,7 +826,7 @@
       wDots = inView.slice(-80).map((e) => {
         const el = make('div', 'tdot ' + (e.side === 'BUY' ? 'buy' : (e.pnl ?? 0) > 0 ? 'win' : 'lose'));
         $('wchart').append(el);
-        return { el, p: byTime.get(e.ts + TZ) };
+        return { el, e, p: byTime.get(e.ts + TZ) };
       });
       const lastTrade = m.evs.filter((e) => e.side === 'BUY' || e.side === 'SELL').pop();
       wNote.hidden = !!inView.length || !lastTrade || !cfg.tf;
@@ -992,6 +1050,8 @@
     const m = model();
     const trades = m.evs.filter((e) => e.mint === mint && (e.side === 'BUY' || e.side === 'SELL'));
     sheetTrade = trade || trades[trades.length - 1] || null;
+    // a buy that was later sold opens as that whole trade, not as if it were still open
+    if (sheetTrade && sheetTrade.side === 'BUY' && m.lastBuy[mint] !== sheetTrade) sheetTrade = trades.find((e) => e.buy === sheetTrade) || sheetTrade;
     const link = meta[mint] && meta[mint].url;
     $('sheetLink').hidden = !link; if (link) $('sheetLink').href = link;
     $('clist').replaceChildren(...trades.slice().reverse().map((e) => {
@@ -1248,6 +1308,8 @@
       Object.assign(prices, p);
       const now = Math.floor(Date.now() / 1000);
       mints.forEach((x) => { if (p[x]) { (trails[x] = trails[x] || []).push([now, p[x]]); trails[x] = trails[x].slice(-400); } });
+      // price trails of coins sold more than 3 days ago are dropped
+      Object.keys(trails).forEach((x) => { const t = trails[x]; if (!hold[x] && (!t.length || now - t[t.length - 1][0] > 3 * 86400)) delete trails[x]; });
       store.set('trails2', trails);
       if (solBal != null && solUsd) {
         samples.push([now, solBal + openValue()]);

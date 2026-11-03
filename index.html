@@ -123,7 +123,8 @@
   .car { display: flex; gap: 12px; overflow-x: auto; scroll-snap-type: x mandatory; margin: 0 -16px; padding: 0 16px; scroll-padding: 0 16px; }
   .card { flex: 0 0 min(222px, 60%); scroll-snap-align: start; background: var(--card); border-radius: 20px; padding: 14px; min-height: 176px; display: grid; align-content: start; gap: 12px; text-align: left; }
   .ch { display: flex; gap: 10px; align-items: center; min-width: 0; }
-  .ch .ic { flex: none; width: 36px; height: 36px; border-radius: 11px; background: var(--soft); display: grid; place-items: center; font-size: 18px; }
+  .ch .ic { flex: none; width: 36px; height: 36px; border-radius: 11px; background: var(--soft); background: color-mix(in srgb, currentColor 16%, transparent); display: grid; place-items: center; }
+  .ch .ic svg { width: 19px; height: 19px; }
   .ch .av.sm { width: 36px; height: 36px; }
   .ch .cn { font-size: 17px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .ch .cs { font-size: 13px; color: var(--muted); display: flex; align-items: center; gap: 5px; }
@@ -131,7 +132,9 @@
   .cs.g { color: var(--gain); } .cs.r { color: var(--loss); } .cs.b { color: var(--accent); } .cs.y { color: var(--ring); }
   .big { font-size: 30px; font-weight: 700; letter-spacing: -.02em; line-height: 1.05; }
   .small { font-size: 13px; color: var(--muted); }
-  .ringrow { display: flex; align-items: center; gap: 12px; }
+  .ringrow { display: flex; align-items: center; gap: 12px; min-width: 0; }
+  .ringrow > div:last-child { min-width: 0; }
+  .ringrow .rn { font-size: 20px; font-weight: 700; white-space: nowrap; }
   .ring { position: relative; width: 66px; height: 66px; flex: none; }
   .ring svg { width: 66px; height: 66px; transform: rotate(-90deg); }
   .ring b { position: absolute; inset: 0; display: grid; place-items: center; font-size: 22px; font-weight: 700; }
@@ -156,6 +159,13 @@
   .feed { list-style: none; margin: 0; padding: 0; display: grid; }
   .act { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 11px 0; width: 100%; text-align: left; border-bottom: 1px solid var(--line); }
   .feed li:last-child .act { border-bottom: 0; }
+  .feed .day { list-style: none; font-size: 14px; font-weight: 600; color: var(--muted); padding: 16px 0 2px; }
+  .feed .day:first-child { padding-top: 2px; }
+  /* tapping feels like an app: things press in, and a long press doesn't select text */
+  button, .card, .act { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+  .card, .pill, .seg button, .tf button, .back, .tabbar button, .primary, .ghost { transition: transform .12s ease; }
+  .card:active, .pill:active, .seg button:active, .tf button:active, .back:active, .tabbar button:active, .primary:active, .ghost:active { transform: scale(.96); }
+  .act { transition: opacity .12s ease; } .act:active { opacity: .55; }
   .avw { position: relative; }
   .bdg { position: absolute; right: -3px; bottom: -3px; width: 19px; height: 19px; border-radius: 50%; border: 2px solid var(--bg); display: grid; place-items: center; color: #fff; }
   .bdg svg { width: 9px; height: 9px; }
@@ -746,7 +756,8 @@
       });
       wSeries.setData(wData);
       if (wBase) wSeries.removePriceLine(wBase);
-      wBase = wData.length ? wSeries.createPriceLine({ price: wData[0].value, color: alpha(css('--muted').startsWith('#') ? css('--muted') : '#8e8e93', 0.7), lineWidth: 1, lineStyle: 1, axisLabelVisible: false }) : null;
+      // dotted line at where the range started; for ALL, at your starting balance
+      wBase = wData.length ? wSeries.createPriceLine({ price: cfg.tf ? wData[0].value : +(cfg.start * k).toFixed(usd() ? 2 : 5), color: alpha(css('--muted').startsWith('#') ? css('--muted') : '#8e8e93', 0.7), lineWidth: 1, lineStyle: 1, axisLabelVisible: false }) : null;
       wChart.timeScale().fitContent();
       // a dot for every trade in the range (blue ring for a buy, green or red for a sell),
       // and bubbles for the latest few sells: +$38 for a win, −7% · −$2.98 for a loss
@@ -776,9 +787,16 @@
   }
 
   // ---------- bot cards ----------
-  function cardHead(icon, name, status, cls) {
+  const ICON = {
+    scan: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="2.2" fill="currentColor"/><path d="M12 3a9 9 0 1 0 9 9"/><path d="M12 7.5a4.5 4.5 0 1 0 4.5 4.5"/></svg>',
+    target: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r="1.3" fill="currentColor"/></svg>',
+    trend: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l6-6 4 4 8-8"/><path d="M15 7h6v6"/></svg>',
+    bolt: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M13.5 2 4.5 13.5h6.2L9.8 22l9-11.5h-6.2z"/></svg>',
+  };
+  function cardHead(icon, name, status, cls, color) {
     const h = make('div', 'ch');
-    const ic = typeof icon === 'string' ? make('div', 'ic', icon) : icon;
+    let ic = icon;
+    if (typeof icon === 'string') { ic = make('div', 'ic'); ic.innerHTML = ICON[icon]; ic.style.color = color; }
     const t = make('div'); t.style.minWidth = '0';
     const s = make('div', 'cs ' + cls); s.append(make('i'), document.createTextNode(status));
     t.append(make('div', 'cn', name), s);
@@ -808,7 +826,7 @@
     if (!mints.length) {
       const c = make('div', 'card');
       const r = make('div', 'radar'); r.append(make('i'));
-      c.append(cardHead('🛰️', 'Scanner', 'Looking', 'b'), r, make('div', 'small', 'Nothing open right now. The next trade will show up here.'));
+      c.append(cardHead('scan', 'Scanner', 'Looking', 'b', '#5ac8fa'), r, make('div', 'small', 'Nothing open right now. The next trade will show up here.'));
       cards.push(c);
     }
     // win rate
@@ -817,16 +835,16 @@
     const ring = make('div', 'ring');
     ring.innerHTML = `<svg viewBox="0 0 66 66"><circle cx="33" cy="33" r="28" fill="none" stroke="${css('--soft')}" stroke-width="6"/><circle cx="33" cy="33" r="28" fill="none" stroke="${css('--ring')}" stroke-width="6" stroke-linecap="round" stroke-dasharray="${(rate * 175.9).toFixed(1)} 175.9"/></svg>`;
     ring.append(make('b', 'num', n ? String(Math.round(rate * 100)) : '—'));
-    const rr = make('div', 'ringrow'); const rt = make('div'); rt.append(make('div', 'small', 'win rate'), make('div', 'num', wins + ' of ' + n + ' won'));
+    const rr = make('div', 'ringrow'); const rt = make('div'); rt.append(make('div', 'num rn', wins + ' / ' + n), make('div', 'small', 'trades won'));
     rr.append(ring, rt);
-    wc.append(cardHead('🎯', 'Results', n ? 'Scoring' : 'No trades yet', 'y'), rr);
+    wc.append(cardHead('target', 'Results', n ? 'Win rate' : 'No trades yet', 'y', css('--ring')), rr);
     cards.push(wc);
     // profit since start
     if (total != null) {
       const pl = total - cfg.start;
       const pc = make('div', 'card');
       const big = make('div', 'big num', money(pl, true)); tone(big, pl);
-      pc.append(cardHead('📈', 'Profit', 'since start', pl >= 0 ? 'g' : 'r'), big, make('div', 'small num', pct(pl / cfg.start) + ' · ' + (other(pl, true) || money(cfg.start) + ' start')));
+      pc.append(cardHead('trend', 'Profit', 'since start', pl >= 0 ? 'g' : 'r', css(pl >= 0 ? '--gain' : '--loss')), big, make('div', 'small num', pct(pl / cfg.start) + ' · ' + (other(pl, true) || money(cfg.start) + ' start')));
       cards.push(pc);
     }
     // today
@@ -836,10 +854,12 @@
     const lastTrade = m.evs.filter((e) => e.side === 'BUY' || e.side === 'SELL').pop();
     const tc = make('div', 'card');
     const tb = make('div', 'big num', String(today.length));
-    tc.append(cardHead('⚡', 'Today', today.length ? money(tp, true) : 'Quiet', today.length ? (tp >= 0 ? 'g' : 'r') : 'b'), tb,
+    tc.append(cardHead('bolt', 'Today', today.length ? money(tp, true) : 'Quiet', today.length ? (tp >= 0 ? 'g' : 'r') : 'b', css('--accent')), tb,
       make('div', 'small', today.length ? 'closed trade' + (today.length > 1 ? 's' : '') + ' today' : lastTrade ? 'last trade ' + ago(lastTrade.ts) : 'no trades yet'));
     cards.push(tc);
+    const keep = $('car').scrollLeft;   // redraws every few seconds shouldn't throw you back to the first card
     $('car').replaceChildren(...cards);
+    $('car').scrollLeft = keep;
     $('botSide').textContent = mints.length ? mints.length + ' open' : 'scanning';
     paintDots();
     return { val, n: mints.length };
@@ -861,7 +881,14 @@
     win: '<svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 6.5l2.5 2.5 4.5-5.5"/></svg>',
     lose: '<svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M3 3l6 6M9 3l-6 6"/></svg>',
   };
-  function tradeRow(e, m, now) {
+  const dayLabel = (ts) => {
+    const d = new Date(ts * 1000), now = new Date(), y = new Date(); y.setDate(now.getDate() - 1);
+    if (d.toDateString() === now.toDateString()) return 'Today';
+    if (d.toDateString() === y.toDateString()) return 'Yesterday';
+    return d.toLocaleDateString([], { weekday: 'long', month: 'short', day: 'numeric' });
+  };
+  function tradeRow(e, m, now, timeOnly) {
+    const when = timeOnly ? clock : stamp;
     const li = document.createElement('li');
     const row = make('button'); row.type = 'button';
     const buy = e.side === 'BUY', kind = buy ? 'buy' : (e.pnl ?? 0) > 0 ? 'win' : 'lose';
@@ -871,7 +898,7 @@
     const what = make('div');
     const holding = buy && m.lastBuy[e.mint] === e;
     what.append(make('div', 'what', (buy ? 'Bought ' : 'Sold ') + sym(e.mint)),
-      make('div', 'when', buy ? (holding ? 'Holding · ' : '') + stamp(e.ts) : (e.held != null ? 'held ' + dur(e.held) + ' · ' : '') + stamp(e.ts)));
+      make('div', 'when', buy ? (holding ? 'Holding · ' : '') + when(e.ts) : (e.held != null ? 'held ' + dur(e.held) + ' · ' : '') + when(e.ts)));
     const amt = make('div', 'amt num');
     if (!buy && e.ret != null) { amt.textContent = money(e.pnl, true); tone(amt, e.pnl); amt.append(make('small', '', pct(e.ret))); }
     else { amt.textContent = money(e.sol); amt.append(make('small', '', buy ? other(e.sol) || 'spent' : 'received')); }
@@ -880,11 +907,24 @@
     li.append(row);
     return li;
   }
+  let feedKey = '';
   function renderFeed(m) {
     const now = Date.now() / 1000;
     const list = m.evs.filter((e) => e.side === 'BUY' || e.side === 'SELL').slice(-100).reverse();
+    // only redraw when something in the list would look different, so pictures don't flicker and taps don't land on a moving row
+    const key = [list.length, list[0] && list[0].sig, cfg.unit, usd() ? solUsd.toFixed(1) : '', Object.keys(meta).length, Object.keys(m.lastBuy).join(), new Date().toDateString(), Math.floor(now / 60)].join('|');
+    if (key === feedKey) return;
+    feedKey = key;
     const empty = () => make('li', 'empty', 'No trades in the wallet\'s recent history yet. New ones show up here the moment they happen.');
-    $('feed').replaceChildren(...(list.length ? list.map((e) => tradeRow(e, m, now)) : [empty()]));
+    // the full list is grouped by day, so each row only needs its time
+    const all = [];
+    let lastDay = '';
+    list.forEach((e) => {
+      const d = dayLabel(e.ts);
+      if (d !== lastDay) { all.push(make('li', 'day', d)); lastDay = d; }
+      all.push(tradeRow(e, m, now, true));
+    });
+    $('feed').replaceChildren(...(list.length ? all : [empty()]));
     $('feedHome').replaceChildren(...(list.length ? list.slice(0, 5).map((e) => tradeRow(e, m, now)) : [empty()]));
     $('seeAll').hidden = list.length <= 5;
     firstPaint = false;
@@ -944,6 +984,8 @@
   async function openSheet(mint, trade) {
     const same = sheetMint === mint;
     sheetMint = mint; if (!same) { sheetInfo = {}; lastFocus = document.activeElement; }
+    // a history step for the coin page, so the phone's back gesture closes it instead of leaving the app
+    if (!(history.state && history.state.coin)) try { history.pushState({ coin: 1 }, ''); } catch {}
     $('scrim').hidden = false; $('sheet').hidden = false;
     const av = avatar(mint); av.id = 'sheetAv'; $('sheetAv').replaceWith(av);
     $('sheetClose').focus();
@@ -1077,11 +1119,14 @@
     }
   }
   function closeSheet() {
+    if (history.state && history.state.coin) { history.back(); return; }   // closes through the popstate below
     $('scrim').hidden = true; $('sheet').hidden = true; sheetMint = null; sheetTrade = null; sheetInfo = {};
     if (cChart) { cChart.remove(); cChart = null; }
     clearTags();
     if (lastFocus && lastFocus.focus) lastFocus.focus();
   }
+  if (history.state && history.state.coin) try { history.replaceState(null, ''); } catch {}   // a reload with a coin page open starts clean
+  addEventListener('popstate', () => { if (!$('sheet').hidden && !(history.state && history.state.coin)) closeSheet(); });
   $('sheetClose').addEventListener('click', closeSheet);
   $('scrim').addEventListener('click', closeSheet);
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !$('sheet').hidden) closeSheet(); });
@@ -1117,8 +1162,11 @@
     setTotal(total);
     const w = renderWalletChart(m, total);
     if (w.first != null && w.last != null) {
-      const d = w.last - w.first;
-      $('chg').textContent = (d >= 0 ? '▲ ' : '▼ ') + money(Math.abs(d)) + ' (' + pct(w.first ? d / w.first : 0) + ')';
+      // ALL compares with your starting balance, like the × pill; the other ranges with where the range began
+      const base = cfg.tf ? w.first : cfg.start;
+      let d = w.last - base;
+      if (Math.abs(d) < 5e-6) d = 0;   // a flat range reads as no change, not a green ▲ $0.00
+      $('chg').textContent = (d > 0 ? '▲ ' : d < 0 ? '▼ ' : '') + money(Math.abs(d)) + ' (' + pct(base ? d / base : 0) + ')';
       tone($('chg'), d);
     }
     if (total != null && cfg.start > 0) { $('mult').hidden = false; $('mult').textContent = (total / cfg.start).toFixed(2) + '×'; }

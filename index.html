@@ -181,6 +181,22 @@
   @keyframes slide { from { transform: translateY(-12px); opacity: 0; } to { transform: none; opacity: 1; } }
   .empty { padding: 22px 8px; text-align: center; color: var(--muted); font-size: 14px; list-style: none; }
 
+  /* trending */
+  .tf.two { grid-template-columns: 1fr 1fr; }
+  .sidesw { display: none; }
+  .sh .upd { font-size: 13px; color: var(--muted); }
+  .chk { display: inline-block; margin-top: 3px; font-size: 12px; font-weight: 600; color: var(--muted); }
+  .chk.ok { color: var(--gain); }
+  .trend .when { display: flex; gap: 6px; }
+  .checks { display: grid; gap: 2px; background: var(--card); border-radius: 18px; padding: 12px 16px; }
+  .checks h4 { margin: 0 0 4px; font-size: 16px; }
+  .checks .row { display: grid; grid-template-columns: 22px minmax(0, 1fr) auto; gap: 8px; align-items: center; padding: 7px 0; font-size: 15px; }
+  .checks .row + .row { border-top: 1px solid var(--line); }
+  .checks .mk { width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center; font-size: 12px; font-weight: 800; color: #fff; background: var(--muted); }
+  .checks .ok .mk { background: var(--gain); } .checks .bad .mk { background: var(--loss); }
+  .checks .v { color: var(--muted); font-size: 14px; }
+  .checks small { color: var(--muted); font-size: 12px; line-height: 1.45; padding-top: 6px; }
+
   /* coin page */
   .scrim { position: fixed; inset: 0; background: var(--scrim); z-index: 20; animation: fade .2s ease; }
   @keyframes fade { from { opacity: 0; } }
@@ -284,10 +300,17 @@
     #dash { overflow: hidden; align-content: stretch; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr) auto auto; gap: 14px 32px; }
     .hero { grid-column: 1; grid-row: 1; }
     .wchart { grid-column: 1; grid-row: 2; height: auto; min-height: 0; margin: 0; }
-    .tf { grid-column: 1; grid-row: 3; }
+    #tfRange { grid-column: 1; grid-row: 3; }
       #recentSec { display: none; }
     #allSec { grid-column: 2; grid-row: 1 / -1; min-height: 0; grid-template-rows: auto minmax(0, 1fr) auto; }
     #feed { min-height: 0; overflow-y: auto; overscroll-behavior: contain; align-content: start; }
+    #trendSec { grid-column: 2; grid-row: 1 / -1; min-height: 0; grid-template-rows: auto auto minmax(0, 1fr) auto; }
+    #trendFeed { min-height: 0; overflow-y: auto; overscroll-behavior: contain; align-content: start; }
+    body:not([data-side="trend"]) #trendSec, body[data-side="trend"] #allSec { display: none; }
+    .sh h2 { display: none; }
+    .sidesw { display: flex; gap: 18px; }
+    .sidesw button { font-size: 20px; font-weight: 700; color: var(--muted); transition: color .2s ease; }
+    .sidesw button[aria-pressed="true"] { color: var(--ink); }
   }
   @media (max-width: 860px), (max-height: 599px) { #allSec .foot { margin-top: 6px; } }
 
@@ -296,13 +319,13 @@
     #settingsBtn, #soundBtn, #themeBtn { display: none; }
     .seg button { padding: 6px 10px; }
     .setup { padding: 18px; gap: 12px; }
-    .tabbar { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); position: fixed; left: 0; right: 0; bottom: 0; z-index: 15;
+    .tabbar { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); position: fixed; left: 0; right: 0; bottom: 0; z-index: 15;
       background: var(--bg); background: color-mix(in srgb, var(--bg) 86%, transparent); -webkit-backdrop-filter: blur(18px) saturate(1.6); backdrop-filter: blur(18px) saturate(1.6);
       border-top: 1px solid var(--line); padding: 6px 8px max(8px, env(safe-area-inset-bottom, 0px)); }
     .tabbar button { position: relative; display: grid; justify-items: center; gap: 3px; min-height: 52px; padding: 6px 0 2px; font-size: 12px; font-weight: 500; color: var(--muted); }
     .tabbar svg { width: 27px; height: 27px; }
     .tabbar button[aria-current="page"] { color: var(--ink); }
-    body[data-view="home"] [data-tab="trades"], body[data-view="trades"] [data-tab="home"] { display: none !important; }
+    body:not([data-view="home"]) [data-tab="home"], body:not([data-view="trades"]) [data-tab="trades"], body:not([data-view="trend"]) [data-tab="trend"] { display: none !important; }
   }
   @media (display-mode: standalone) { .foot { display: none; } }
   /* with Reduce Motion switched on, nothing slides, fades or pops */
@@ -362,7 +385,7 @@
       <div class="chgline num" id="chg">—</div>
     </section>
     <div class="wchart" id="wchart" data-tab="home"></div>
-    <div class="tf" role="group" aria-label="Time range" data-tab="home">
+    <div class="tf" id="tfRange" role="group" aria-label="Time range" data-tab="home">
       <button data-tf="86400">24H</button><button data-tf="604800">7D</button><button data-tf="2592000">30D</button><button data-tf="0">ALL</button>
     </div>
 
@@ -373,9 +396,16 @@
     </section>
 
     <section class="section" id="allSec" aria-labelledby="actH" data-tab="trades">
-      <div class="sh"><h2 id="actH">Activity</h2></div>
+      <div class="sh"><h2 id="actH">Activity</h2><div class="sidesw"><button data-side="trades" aria-pressed="true">Activity</button><button data-side="trend" aria-pressed="false">Trending</button></div></div>
       <ol class="feed" id="feed"><li class="empty"><span class="sk" style="height:14px;width:60%;margin:0 auto"></span></li></ol>
       <p class="foot">Public blockchain data only. Prices from DexScreener, candles and holders from GeckoTerminal. Trade results are SOL back minus SOL in, after swap fees. In USD, amounts use today's SOL price.</p>
+    </section>
+
+    <section class="section" id="trendSec" aria-labelledby="trendH" data-tab="trend">
+      <div class="sh"><h2 id="trendH">Trending</h2><div class="sidesw"><button data-side="trades" aria-pressed="false">Activity</button><button data-side="trend" aria-pressed="true">Trending</button></div><span class="side upd" id="trendUpd"></span></div>
+      <div class="tf two" id="trendFilter" role="group" aria-label="Which coins"><button data-f="ok" aria-pressed="true">Passes checks</button><button data-f="all" aria-pressed="false">All trending</button></div>
+      <ol class="feed" id="trendFeed"><li class="empty"><span class="sk" style="height:14px;width:60%;margin:0 auto"></span></li></ol>
+      <p class="foot">The coins trending on Solana right now, from GeckoTerminal. Each one is run through 6 quick checks, but passing them doesn't make a coin safe. Memecoins can still drop to zero in minutes.</p>
     </section>
   </main>
 </div>
@@ -383,6 +413,7 @@
 <nav class="tabbar" aria-label="Sections">
   <button id="tabHome" data-go="home" aria-current="page"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 3.2 2.8 11a1 1 0 0 0 1.3 1.5l.9-.8V20a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1v-8.3l.9.8a1 1 0 1 0 1.3-1.5z"/></svg>Home</button>
   <button id="tabTrades" data-go="trades"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12h4l3-8 4 16 3-8h6"/></svg>Activity<span class="tab-badge" id="tabBadge" hidden></span></button>
+  <button id="tabTrend" data-go="trend"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3c.5 3.5 5 5.5 5 10.5a5 5 0 0 1-10 0c0-2.2 1.1-3.8 2.3-4.8.1 1.8.9 2.8 2 3.1C11 8.6 10.5 6 12 3z"/></svg>Trending</button>
   <button id="tabSettings" data-go="settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>Settings</button>
 </nav>
 <div class="toasts" id="toasts" aria-live="polite"></div>
@@ -405,6 +436,7 @@
       <div><span>Holders</span><b id="stHolders">—</b></div>
       <div><span>24h volume</span><b id="stVol">—</b></div>
     </div>
+    <div class="checks" id="sheetChecks" hidden></div>
     <div class="ccard num" id="posCard"></div>
     <div class="ccard num" id="stopCard" hidden></div>
     <div class="clist" id="clist"></div>
@@ -723,7 +755,7 @@
   let wDrawn = false, wMoved = false, wFitKey = '';
   const wDot = make('div', 'wdot');
   const wNote = make('button', 'wnote'); wNote.type = 'button'; wNote.hidden = true;
-  wNote.addEventListener('click', () => { const all = document.querySelector('.tf button[data-tf="0"]'); if (all) all.click(); });
+  wNote.addEventListener('click', () => { const all = document.querySelector('#tfRange button[data-tf="0"]'); if (all) all.click(); });
   // the card for the trade under your finger or mouse; tapping it opens that coin
   const wTip = make('button', 'wtip'); wTip.type = 'button'; wTip.hidden = true;
   let tipE = null, tipPinned = false, scrubbing = false;
@@ -913,6 +945,116 @@
   }
   $('seeAll').addEventListener('click', () => go('trades'));
 
+  // ---------- trending ----------
+  // The coins trending on Solana, from GeckoTerminal, each run through a few quick checks.
+  // Passing them only rules out the most obvious traps; it doesn't make a coin safe.
+  const CHECKS = [
+    ['Liquidity over $20K', (x) => (x.liq != null ? x.liq >= 20000 : null), (x) => compact(x.liq)],
+    ['Trading for over an hour', (x) => (x.created ? Date.now() / 1000 - x.created >= 3600 : null), (x) => (x.created ? age(x.created) : '—')],
+    ['Nobody can mint more or freeze coins', (x) => (x.authKnown ? !x.mintAuth && !x.freezeAuth : null), (x) => (!x.authKnown ? 'couldn\'t check' : x.mintAuth ? 'can mint' : x.freezeAuth ? 'can freeze' : 'switched off')],
+    ['More buyers than sellers this hour', (x) => (x.buyers != null && x.sellers != null ? x.buyers >= x.sellers : null), (x) => (x.buyers != null ? x.buyers + ' / ' + x.sellers : '—')],
+    ['Not dumping (1h above −15%)', (x) => (x.h1 != null ? x.h1 >= -15 : null), (x) => (x.h1 != null ? pct(x.h1 / 100) : '—')],
+    ['Liquidity at least 5% of market cap', (x) => (x.liq && x.mc ? x.liq / x.mc >= 0.05 : null), (x) => (x.liq && x.mc ? Math.round((x.liq / x.mc) * 100) + '%' : '—')],
+  ];
+  let trend = [], trendAt = 0, trendBusy = false, trendErr = '', trendFilter = store.get('trendFilter', 'ok');
+  const trendBy = {};
+  const num = (v) => (v == null || v === '' ? null : Number(v));
+  async function loadTrend(force) {
+    if (trendBusy || (!force && trendAt && Date.now() - trendAt < 60000)) return;
+    trendBusy = true;
+    try {
+      const path = '/trending_pools?include=base_token&page=1';
+      geckoCache.delete(path);   // always a fresh list
+      const j = await gecko(path);
+      if (!j || !j.data) throw new Error('no data');
+      const toks = {};
+      (j.included || []).forEach((t) => { if (t.type === 'token') toks[t.id] = t.attributes; });
+      const seen = new Set(), list = [];
+      j.data.forEach((p) => {
+        const a = p.attributes || {}, rel = p.relationships && p.relationships.base_token && p.relationships.base_token.data;
+        const t = rel && toks[rel.id];
+        if (!t || !t.address || seen.has(t.address) || t.address === SOL_MINT || /^(USDC|USDT|SOL|WSOL)$/i.test(t.symbol || '')) return;
+        seen.add(t.address);
+        const tx = (a.transactions && a.transactions.h1) || {}, ch = a.price_change_percentage || {};
+        list.push({
+          mint: t.address, symbol: t.symbol || '', name: t.name || '', icon: /^https:/.test(t.image_url || '') ? t.image_url : '', pool: a.address || '',
+          price: num(a.base_token_price_usd), mc: num(a.market_cap_usd) || num(a.fdv_usd), liq: num(a.reserve_in_usd), vol: num(a.volume_usd && a.volume_usd.h24),
+          h1: num(ch.h1), h24: num(ch.h24), created: a.pool_created_at ? Date.parse(a.pool_created_at) / 1000 : null,
+          buyers: num(tx.buyers != null ? tx.buyers : tx.buys), sellers: num(tx.sellers != null ? tx.sellers : tx.sells),
+        });
+      });
+      // whether anyone can still create more of the coin or freeze holders' coins, read straight from Solana
+      try {
+        const r = await rpc('getMultipleAccounts', [list.map((x) => x.mint), { encoding: 'jsonParsed' }]);
+        (r.value || []).forEach((acc, i) => {
+          const info = acc && acc.data && acc.data.parsed && acc.data.parsed.info;
+          if (info) Object.assign(list[i], { authKnown: true, mintAuth: info.mintAuthority || null, freezeAuth: info.freezeAuthority || null });
+        });
+      } catch {}
+      list.forEach((x, i) => {
+        x.rank = i;
+        x.res = CHECKS.map(([, test]) => test(x));
+        x.score = x.res.filter((v) => v === true).length;
+        x.passed = x.score === CHECKS.length;
+        trendBy[x.mint] = x;
+        const old = meta[x.mint];
+        meta[x.mint] = old ? { ...old, icon: old.icon || x.icon, pool: old.pool || x.pool } : { symbol: x.symbol, name: x.name, icon: x.icon, pool: x.pool, url: 'https://dexscreener.com/solana/' + x.pool, trend: true };
+      });
+      // coins that only came from an old trending list are dropped from the saved names and pictures
+      const keep = new Set(list.map((x) => x.mint).concat(Object.values(txCache).filter(Boolean).map((e) => e.mint)));
+      Object.keys(meta).forEach((a) => { if (meta[a].trend && !keep.has(a)) delete meta[a]; });
+      list.sort((a, b) => b.passed - a.passed || b.score - a.score || a.rank - b.rank);
+      trend = list; trendAt = Date.now(); trendErr = '';
+    } catch {
+      trendErr = 'Couldn\'t load trending coins right now. Trying again in a minute.';
+    } finally { trendBusy = false; paintTrend(); }
+  }
+  let trendKey = '', trendFirst = true;
+  function paintTrend() {
+    $('trendUpd').textContent = trendAt ? 'updated ' + ago(trendAt / 1000) : '';
+    const shown = trendFilter === 'all' ? trend : trend.filter((x) => x.passed);
+    const key = [trendAt, trendFilter, trendErr, iconOk.size].join('|');
+    if (key === trendKey) return;
+    trendKey = key;
+    if (!trendAt && !trendErr) return;   // still loading: keep the skeleton
+    const rows = shown.map((x) => {
+      const li = document.createElement('li');
+      const row = make('button', 'act trend'); row.type = 'button';
+      const what = make('div');
+      const sub = make('div', 'when', ['MC ' + compact(x.mc), 'Liq ' + compact(x.liq), x.created ? age(x.created) : ''].filter(Boolean).join(' · '));
+      what.append(make('div', 'what', x.symbol || sym(x.mint)), sub);
+      const amt = make('div', 'amt num');
+      amt.textContent = x.h1 != null ? pct(x.h1 / 100) : '—'; if (x.h1 != null) tone(amt, x.h1);
+      const c = make('small', 'chk' + (x.passed ? ' ok' : ''), x.score + '/' + CHECKS.length + ' checks');
+      amt.append(c);
+      row.append(avatar(x.mint), what, amt);
+      row.addEventListener('click', () => openSheet(x.mint));
+      li.append(row); return li;
+    });
+    let empty = null;
+    if (trendErr && !trend.length) empty = make('li', 'empty', trendErr);
+    else if (!shown.length) {
+      empty = make('li', 'empty', 'None of the ' + trend.length + ' trending coins pass every check right now. ');
+      const b = make('button', 'ext', 'Show all'); b.type = 'button'; b.addEventListener('click', () => setTrendFilter('all')); empty.append(b);
+    }
+    $('trendFeed').replaceChildren(...(empty ? [empty] : rows));
+    if (trendFirst && rows.length) { [...$('trendFeed').children].slice(0, 12).forEach((li, i) => { li.classList.add('in'); li.style.setProperty('--i', i); }); trendFirst = false; }
+  }
+  function setTrendFilter(f) {
+    trendFilter = f; store.set('trendFilter', f);
+    document.querySelectorAll('#trendFilter button').forEach((b) => b.setAttribute('aria-pressed', b.dataset.f === f ? 'true' : 'false'));
+    slideKnob($('trendFilter')); paintTrend();
+  }
+  document.querySelectorAll('#trendFilter button').forEach((b) => b.addEventListener('click', () => setTrendFilter(b.dataset.f)));
+  const trendShowing = () => !document.hidden && running && $('trendSec').offsetParent !== null;
+  setInterval(() => { if (trendShowing()) loadTrend(); paintTrend(); }, 15000);
+  // wide screens: the right-hand column switches between Activity and Trending
+  document.querySelectorAll('.sidesw button').forEach((b) => b.addEventListener('click', () => {
+    document.body.dataset.side = b.dataset.side;
+    document.querySelectorAll('.sidesw button').forEach((x) => x.setAttribute('aria-pressed', x.dataset.side === b.dataset.side ? 'true' : 'false'));
+    if (b.dataset.side === 'trend') { loadTrend(); slideKnob($('trendFilter')); }
+  }));
+
   // ---------- coin page ----------
   let cChart = null, sheetMint = null, sheetTrade = null, sheetInfo = {}, lastFocus = null, closeT = 0;
   const clearTags = () => $('cchart').querySelectorAll('.tag').forEach((el) => el.remove());
@@ -931,6 +1073,20 @@
     } else if (e && e.side === 'SELL' && e.ret != null) {
       tone(chg, e.pnl);
       chg.append((e.ret >= 0 ? '▲ ' : '▼ ') + pct(Math.abs(e.ret)).replace('+', ''), make('span', '', ' on this trade · held ' + dur(e.held)));
+    } else if (!e && info.chg24 != null) {
+      const p = info.chg24 / 100; tone(chg, p);
+      chg.append((p >= 0 ? '▲ ' : '▼ ') + pct(Math.abs(p)).replace('+', ''), make('span', '', ' today'));
+    }
+    const tr = trendBy[mint], ck = $('sheetChecks');
+    ck.hidden = !tr || !!e;
+    if (tr && !e) {
+      ck.replaceChildren(make('h4', '', tr.score + ' of ' + CHECKS.length + ' checks passed'));
+      CHECKS.forEach(([label, , val], i) => {
+        const r = tr.res[i], row = make('div', 'row ' + (r === true ? 'ok' : r === false ? 'bad' : ''));
+        row.append(make('span', 'mk', r === true ? '✓' : r === false ? '✕' : '?'), make('span', '', label), make('span', 'v num', val(tr)));
+        ck.append(row);
+      });
+      ck.append(make('small', '', 'These only rule out the most obvious traps. A coin can pass all of them and still crash.'));
     }
     const name = (meta[mint] && meta[mint].name) || info.name || sym(mint);
     $('sheetName').textContent = name;
@@ -988,7 +1144,7 @@
     fetch('https://api.dexscreener.com/tokens/v1/solana/' + mint).then((r) => (r.ok ? r.json() : [])).then((list) => {
       const p = (list || []).sort((a, b) => ((b.liquidity && b.liquidity.usd) || 0) - ((a.liquidity && a.liquidity.usd) || 0))[0];
       if (!p || sheetMint !== mint) return;
-      Object.assign(sheetInfo, { price: Number(p.priceUsd), mc: p.marketCap || p.fdv, liq: p.liquidity && p.liquidity.usd, vol: p.volume && p.volume.h24, created: p.pairCreatedAt ? p.pairCreatedAt / 1000 : null, name: p.baseToken && p.baseToken.name });
+      Object.assign(sheetInfo, { price: Number(p.priceUsd), mc: p.marketCap || p.fdv, liq: p.liquidity && p.liquidity.usd, vol: p.volume && p.volume.h24, created: p.pairCreatedAt ? p.pairCreatedAt / 1000 : null, name: p.baseToken && p.baseToken.name, chg24: p.priceChange && p.priceChange.h24 != null ? Number(p.priceChange.h24) : null });
       paintSheet();
     }).catch(() => {});
     await drawCoinChart(mint, trades);
@@ -1286,6 +1442,7 @@
     document.body.dataset.view = view;
     $('tabHome').toggleAttribute('aria-current', !settingsOpen && view === 'home');
     $('tabTrades').toggleAttribute('aria-current', !settingsOpen && view === 'trades');
+    $('tabTrend').toggleAttribute('aria-current', !settingsOpen && view === 'trend');
     $('tabSettings').toggleAttribute('aria-current', settingsOpen);
     document.querySelectorAll('.tabbar [aria-current]').forEach((b) => b.setAttribute('aria-current', 'page'));
   }
@@ -1295,6 +1452,7 @@
     if (!$('setup').hidden && running) { $('setup').hidden = true; $('dash').hidden = false; }
     const same = view === v; view = v;
     if (v === 'trades') { unseen = 0; paintBadge(); }
+    if (v === 'trend') loadTrend();
     paintTabs();
     if (!same) replay($('dash'));
     $('dash').scrollTo({ top: 0, behavior: same || reduceMotion.matches ? 'auto' : 'instant' });
@@ -1388,24 +1546,24 @@
     Object.assign(k.style, { width: b.offsetWidth + 'px', height: b.offsetHeight + 'px', top: b.offsetTop + 'px', transform: `translateX(${b.offsetLeft}px)` });
     if (!k.classList.contains('ready')) setTimeout(() => k.classList.add('ready'), 60);   // jump into place the first time, slide after that
   }
-  const knobGroups = [document.querySelector('.tf'), document.querySelector('.seg')];
+  const knobGroups = [$('tfRange'), document.querySelector('.seg'), $('trendFilter')];
   try { const ro = new ResizeObserver(() => knobGroups.forEach(slideKnob)); knobGroups.forEach((g) => ro.observe(g)); } catch {}
   const paintUnit = () => { $('unitSol').setAttribute('aria-pressed', cfg.unit === 'SOL' ? 'true' : 'false'); $('unitUsd').setAttribute('aria-pressed', cfg.unit === 'USD' ? 'true' : 'false'); slideKnob(document.querySelector('.seg')); };
   const setUnit = (u) => { cfg.unit = u; store.set('unit', u); paintUnit(); if (running) renderAll(); };
   $('unitSol').addEventListener('click', () => setUnit('SOL'));
   $('unitUsd').addEventListener('click', () => setUnit('USD'));
-  document.querySelectorAll('.tf button').forEach((b) => {
+  document.querySelectorAll('#tfRange button').forEach((b) => {
     b.setAttribute('aria-pressed', Number(b.dataset.tf) === cfg.tf ? 'true' : 'false');
     b.addEventListener('click', () => {
       const changed = cfg.tf !== Number(b.dataset.tf);
       cfg.tf = Number(b.dataset.tf); store.set('tf', cfg.tf);
-      document.querySelectorAll('.tf button').forEach((x) => x.setAttribute('aria-pressed', x === b ? 'true' : 'false'));
-      slideKnob(document.querySelector('.tf'));
+      document.querySelectorAll('#tfRange button').forEach((x) => x.setAttribute('aria-pressed', x === b ? 'true' : 'false'));
+      slideKnob($('tfRange'));
       if (changed) replay($('wchart'), 'draw', 1000);
       if (running) renderAll();
     });
   });
-  paintSound(); paintUnit();
+  paintSound(); paintUnit(); setTrendFilter(trendFilter === 'all' ? 'all' : 'ok');
 
   if (cfg.wallet) start(); else { setLive('', 'Not set up'); openSetup(false); paintTabs(); }
 })();

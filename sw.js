@@ -1,5 +1,5 @@
 // Memebot Live: keeps the app itself available offline. Wallet and price data always come live from the network.
-const CACHE = 'memebot-live-v3l';
+const CACHE = 'memebot-live-v3m';
 const SHELL = ['./', './index.html', './manifest.json', './icon-192.png', './icon-512.png', './apple-touch-icon.png'];
 const CDN = /^https:\/\/(unpkg\.com\/lightweight-charts@4\.1\.3\/|fonts\.googleapis\.com\/|fonts\.gstatic\.com\/)/;
 

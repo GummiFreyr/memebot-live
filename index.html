@@ -98,11 +98,11 @@
   .hero { display: grid; gap: 8px; min-width: 0; padding-top: 4px; }
   .value { font-size: clamp(46px, 13vw, 64px); font-weight: 700; letter-spacing: -.04em; line-height: 1; min-height: 1em; transition: color .7s ease; }
   .value.tick-up { color: var(--gain); transition: none; } .value.tick-down { color: var(--loss); transition: none; }
+  .hlabel { font-size: 15px; font-weight: 600; color: var(--muted); margin-bottom: -2px; }
   .chgline { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-size: 17px; font-weight: 600; color: var(--muted); }
   .mult { background: var(--accent); color: #fff; border-radius: 999px; padding: 3px 11px; font-size: 16px; font-weight: 700; box-shadow: 0 0 18px rgba(10, 132, 255, .55); }
   .wchart { position: relative; height: clamp(190px, 31vh, 320px); margin: 0 -16px; min-width: 0; overflow: hidden; }
-  .wchart canvas { filter: drop-shadow(0 0 5px rgba(10, 132, 255, .45)); }
-  .wdot { position: absolute; left: -6px; top: -6px; z-index: 2; width: 12px; height: 12px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 4px rgba(10, 132, 255, .25), 0 0 16px var(--accent); pointer-events: none; }
+  .wdot { position: absolute; left: -6px; top: -6px; z-index: 2; width: 12px; height: 12px; border-radius: 50%; color: var(--gain); background: currentColor; box-shadow: 0 0 0 4px color-mix(in srgb, currentColor 22%, transparent), 0 0 14px currentColor; pointer-events: none; }
   .bub { position: absolute; left: 0; top: 0; z-index: 3; display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px 3px 3px; border-radius: 999px; font-size: 14px; font-weight: 700; white-space: nowrap; pointer-events: none; }
   .bub .av.sm { width: 22px; height: 22px; font-size: 9px; }
   .bub.win { background: #0d2a17; color: var(--gain); border: 1px solid rgba(48, 209, 88, .55); }
@@ -120,7 +120,7 @@
   .tdot.buy { background: var(--bg); border: 2px solid var(--accent); } .tdot.win { background: var(--gain); } .tdot.lose { background: var(--loss); }
   .wnote { position: absolute; left: 16px; bottom: 12px; z-index: 3; font-size: 13px; color: var(--muted); background: var(--bg); background: color-mix(in srgb, var(--bg) 80%, transparent); border-radius: 999px; padding: 5px 11px; }
   .wnote b { color: var(--accent); font-weight: 600; }
-  .tf { position: relative; display: flex; justify-content: space-between; gap: 4px; padding-bottom: 14px; border-bottom: 1px solid var(--line); }
+  .tf { position: relative; display: flex; justify-content: space-around; gap: 4px; padding-bottom: 14px; border-bottom: 1px solid var(--line); }
   .tf .knob { background: var(--accent); box-shadow: 0 0 16px rgba(10, 132, 255, .45); }
   .tf button { display: inline-flex; align-items: center; gap: 6px; font-size: 16px; font-weight: 700; color: var(--accent); padding: 7px 12px; border-radius: 999px; position: relative; z-index: 1; transition: color .25s ease, transform .12s ease; }
   .tf button[aria-pressed="true"] { color: #fff; }
@@ -198,8 +198,7 @@
   .wchart.draw .tdot, .wchart.draw .bub, .wchart.draw .bpt, .wchart.draw .wdot { animation: fadeIn .3s ease .6s both; }
   @keyframes drawIn { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0 0 0); } }
   @keyframes fadeIn { from { opacity: 0; } }
-  .wdot::after { content: ""; position: absolute; inset: -6px; border-radius: 50%; border: 2px solid var(--accent); animation: ping 2s ease-out infinite; }
-  .scrub .value { color: var(--ink); } .when-scrub { font-size: 14px; color: var(--muted); font-weight: 500; }
+  .wdot::after { content: ""; position: absolute; inset: -6px; border-radius: 50%; border: 2px solid currentColor; animation: ping 2s ease-out infinite; }
   /* new bubbles pop in; the dot card scales in */
   .bub.pop { animation: pop .38s cubic-bezier(.3, 1.4, .5, 1) both; }
   @keyframes pop { from { opacity: 0; scale: .7; } }
@@ -380,13 +379,14 @@
   </section>
 
   <main id="dash" hidden>
-    <section class="hero" aria-label="Wallet value" data-tab="home">
+    <section class="hero" aria-label="Profit" data-tab="home">
+      <span class="hlabel" id="hLabel">Profit</span>
       <span class="value num" id="total"><span class="sk" style="width:min(260px,70%);height:52px"></span></span>
-      <div class="chgline num"><span id="chg">—</span><span class="mult" id="mult" hidden></span></div>
+      <div class="chgline num" id="chg">—</div>
     </section>
     <div class="wchart" id="wchart" data-tab="home"></div>
     <div class="tf" role="group" aria-label="Time range" data-tab="home">
-      <button data-tf="900"><i></i>LIVE</button><button data-tf="3600">1H</button><button data-tf="14400">4H</button><button data-tf="86400">1D</button><button data-tf="604800">1W</button><button data-tf="0">ALL</button>
+      <button data-tf="86400">24H</button><button data-tf="604800">7D</button><button data-tf="2592000">30D</button><button data-tf="0">ALL</button>
     </div>
 
     <section class="section" id="botSec" aria-labelledby="botH" data-tab="home">
@@ -449,15 +449,15 @@
   const LOCK = 0.10;                                    // and where it starts locking in profit
   const TZ = -new Date().getTimezoneOffset() * 60;      // charts show local time
   const LWC = window.LightweightCharts;
-  const TFS = [900, 3600, 14400, 86400, 604800, 0];
+  const TFS = [86400, 604800, 2592000, 0];
 
   const $ = (id) => document.getElementById(id);
   const store = {
     get(k, d) { try { const v = localStorage.getItem('memebot.' + k); return v === null ? d : JSON.parse(v); } catch { return d; } },
     set(k, v) { try { localStorage.setItem('memebot.' + k, JSON.stringify(v)); } catch {} },
   };
-  const cfg = { wallet: store.get('wallet', ''), rpc: store.get('rpc', ''), start: store.get('start', 0.555), sound: store.get('sound', false), unit: store.get('unit', 'USD'), tf: store.get('tf', 86400) };
-  if (!TFS.includes(cfg.tf)) cfg.tf = 86400;
+  const cfg = { wallet: store.get('wallet', ''), rpc: store.get('rpc', ''), start: store.get('start', 0.555), sound: store.get('sound', false), unit: store.get('unit', 'USD'), tf: store.get('tf', 0) };
+  if (!TFS.includes(cfg.tf)) cfg.tf = 0;
 
   // ---------- formatting ----------
   let solUsd = null;
@@ -747,182 +747,127 @@
     grid: { vertLines: { visible: false }, horzLines: { visible: false } },
     crosshair: { horzLine: { visible: false, labelVisible: false }, vertLine: { color: css('--line'), width: 1, style: 0, labelVisible: false } },
   });
-  let wChart = null, wSeries = null, wBase = null, wData = [], wBubbles = [], wDots = [];
-  const bubSeen = new Set();
-  let wDrawn = false;
+  let wChart = null, wSeries = null, wBase = null, wPts = [], wData = [];
+  let wDrawn = false, wMoved = false, wFitKey = '';
   const wDot = make('div', 'wdot');
   const wNote = make('button', 'wnote'); wNote.type = 'button'; wNote.hidden = true;
   wNote.addEventListener('click', () => { const all = document.querySelector('.tf button[data-tf="0"]'); if (all) all.click(); });
-  // the card that pops up for the trade dot nearest your finger or mouse; tapping it opens that coin
+  // the card for the trade under your finger or mouse; tapping it opens that coin
   const wTip = make('button', 'wtip'); wTip.type = 'button'; wTip.hidden = true;
-  let tipSig = null, tipPinned = false, wMoved = false, wFitKey = '';
-  wTip.addEventListener('click', () => { const d = wDots.find((x) => x.e.sig === tipSig); if (d && d.e.mint) openSheet(d.e.mint, d.e); });
-  function nearestDot(x) {
-    let best = null, bd = 18;   // within 18px of a dot
-    wDots.forEach((d) => { if (d.x != null && !d.el.hidden && Math.abs(d.x - x) < bd) { bd = Math.abs(d.x - x); best = d; } });
-    return best;
-  }
-  function showTip(d) {
-    wDots.forEach((x) => x.el.classList.toggle('on', x === d));
-    if (!d) { const was = !wTip.hidden; wTip.hidden = true; tipSig = null; if (was) requestAnimationFrame(placeWallet); return; }
-    wBubbles.forEach((b) => { b.el.hidden = b.pt.hidden = true; });   // the card takes over from the bubbles while it shows
-    const e = d.e, buy = e.side === 'BUY';
-    if (tipSig !== e.sig) {
-      tipSig = e.sig;
+  let tipE = null, tipPinned = false, scrubbing = false;
+  wTip.addEventListener('click', () => { if (tipE && tipE.mint) openSheet(tipE.mint, tipE); });
+  const ptAt = (time) => wPts.find((q) => q.time === time);
+  const signed = (v) => (v > 0 ? '+' : v < 0 ? '−' : '') + (usd() ? '$' + Math.abs(v).toFixed(2) : Math.abs(v).toFixed(4) + ' SOL');   // chart values are already in $ or SOL
+  function showTip(q) {
+    if (!q || !q.e || !wChart) { wTip.hidden = true; tipE = null; return; }
+    const e = q.e;
+    if (tipE !== e) {
+      tipE = e;
       const t = make('div');
-      if (e.side === 'TRANSFER') {
-        const av = make('div', 'av sm', e.sol < 0 ? '↗' : '↙'); av.style.background = 'var(--soft)'; av.style.color = 'var(--ink)';
-        t.append(make('div', 'tt', e.sol < 0 ? 'Sent out' : 'Received'), make('div', 'ts', stamp(e.ts)));
-        wTip.replaceChildren(av, t, make('div', 'tv num', (e.sol < 0 ? '−' : '+') + money(Math.abs(e.sol))));
-      } else {
-      t.append(make('div', 'tt', (buy ? 'Bought ' : 'Sold ') + sym(e.mint)), make('div', 'ts', (!buy && e.held != null ? 'held ' + dur(e.held) + ' · ' : '') + stamp(e.ts)));
-      const v = make('div', 'tv num');
-      if (!buy && e.ret != null) { v.textContent = money(e.pnl, true); tone(v, e.pnl); v.append(make('small', '', pct(e.ret))); } else v.textContent = money(e.sol);
+      t.append(make('div', 'tt', 'Sold ' + sym(e.mint)), make('div', 'ts', (e.held != null ? 'held ' + dur(e.held) + ' · ' : '') + stamp(e.ts)));
+      const v = make('div', 'tv num', money(e.pnl, true)); tone(v, e.pnl); v.append(make('small', '', pct(e.ret)));
       wTip.replaceChildren(avatar(e.mint, true), t, v);
-      }
     }
+    const x = wChart.timeScale().timeToCoordinate(q.time), y = wSeries.priceToCoordinate(q.value);
+    if (x == null || y == null) { wTip.hidden = true; return; }
     wTip.hidden = false;
     const w = $('wchart').clientWidth, tw = wTip.offsetWidth, th = wTip.offsetHeight;
-    const left = Math.max(6, Math.min(w - tw - 6, d.x - tw / 2));
-    const top = d.y - th - 14 >= 2 ? d.y - th - 14 : d.y + 14;
+    const left = Math.max(6, Math.min(w - tw - 6, x - tw / 2));
+    const top = y - th - 16 >= 2 ? y - th - 16 : y + 16;
     wTip.style.transform = `translate(${left}px, ${top}px)`;
   }
-  let scrubbing = false;
+  // scrubbing: the big number shows your profit at the point under your finger or mouse
   function scrub(p) {
-    const d = p && p.point && p.time != null && p.seriesData ? p.seriesData.get(wSeries) : null;
-    if (!d || d.value == null || !wData.length) {
+    const q = p && p.point && p.time != null ? ptAt(p.time) : null;
+    if (!q) {
       if (scrubbing) { scrubbing = false; document.querySelector('.hero').classList.remove('scrub'); if (running) renderAll(); }
+      if (!tipPinned) showTip(null);
       return;
     }
     scrubbing = true; document.querySelector('.hero').classList.add('scrub');
-    const k = usd() ? solUsd : 1, show = (v) => (usd() ? '$' + Math.abs(v).toFixed(2) : Math.abs(v).toFixed(4) + ' SOL');
-    const m = model(), t0 = cfg.tf ? Math.floor(Date.now() / 1000) - cfg.tf : 0;
-    const flow = m.moves.filter((e) => e.ts >= t0 && e.ts <= p.time - TZ).reduce((sum, e) => sum + e.sol, 0) * k;
-    const base = cfg.tf ? wData[0].value : cfg.start * k, diff = d.value - base - flow;
-    $('total').textContent = (d.value < 0 ? '−' : '') + show(d.value);
-    $('chg').replaceChildren((diff > 0 ? '▲ ' : diff < 0 ? '▼ ' : '') + show(diff) + ' (' + pct(base ? diff / base : 0) + ')', make('span', 'when-scrub', ' · ' + stamp(p.time - TZ)));
-    tone($('chg'), diff);
+    $('total').textContent = signed(q.value); tone($('total'), q.value);
+    $('hLabel').textContent = q.e ? 'Profit after selling ' + sym(q.e.mint) : q.now ? 'Profit right now' : q === wPts[0] ? 'Profit at the start' : 'Profit';
+    $('chg').textContent = stamp(q.time - TZ); tone($('chg'), 0);
+    if (!tipPinned) showTip(q);
   }
   function ensureWalletChart() {
     if (wChart || !LWC) return;
     wChart = LWC.createChart($('wchart'), {
       ...chartBase(),
       ...walletChartTheme(),
-      rightPriceScale: { visible: false, scaleMargins: { top: 0.28, bottom: 0.08 } },
+      rightPriceScale: { visible: false, scaleMargins: { top: 0.18, bottom: 0.12 } },
       timeScale: { visible: false, fixLeftEdge: true, fixRightEdge: true, borderVisible: false },
       // drag sideways and pinch or scroll to zoom; swiping up and down still scrolls the page
       handleScroll: { mouseWheel: true, pressedMouseMove: true, horzTouchDrag: true, vertTouchDrag: false },
       handleScale: { mouseWheel: true, pinch: true, axisPressedMouseMove: false, axisDoubleClickReset: false },
     });
-    wSeries = wChart.addAreaSeries({ lineWidth: 2.5, priceLineVisible: false, lastValueVisible: false, crosshairMarkerRadius: 5, crosshairMarkerBorderWidth: 2 });
+    // green above where the range started, red below it
+    wSeries = wChart.addBaselineSeries({ lineWidth: 2.5, priceLineVisible: false, lastValueVisible: false, crosshairMarkerRadius: 5, crosshairMarkerBorderWidth: 2 });
     $('wchart').append(wDot, wNote, wTip);
     // once you've moved or zoomed the chart, the 5-second updates stop resetting it (until you pick another range)
     ['pointerdown', 'wheel', 'touchstart'].forEach((ev) => $('wchart').addEventListener(ev, (e) => { if (!wTip.contains(e.target)) wMoved = true; }, { passive: true }));
     // (the logical-range event, because the time-range one throws when it fires before the chart has a size)
     wChart.timeScale().subscribeVisibleLogicalRangeChange(() => requestAnimationFrame(placeWallet));
-    wChart.subscribeCrosshairMove((p) => {
-      scrub(p);
-      if (tipPinned) return;
-      showTip(p && p.point ? nearestDot(p.point.x) : null);
-    });
+    wChart.subscribeCrosshairMove(scrub);
     wChart.subscribeClick((p) => {
-      const d = p && p.point ? nearestDot(p.point.x) : null;
-      tipPinned = !!d; showTip(d);
+      const q = p && p.point && p.time != null ? ptAt(p.time) : null;
+      tipPinned = !!(q && q.e); showTip(tipPinned ? q : null);
     });
     try { new ResizeObserver(() => { if (wChart) { if (!wMoved) wChart.timeScale().fitContent(); requestAnimationFrame(placeWallet); } }).observe($('wchart')); } catch {}
   }
-  // the glowing dot at the latest value and the trade bubbles, kept on their points
+  // the pulsing dot on the latest point, and the trade card if one is showing
   function placeWallet() {
     if (!wChart || !wData.length) { wDot.hidden = true; return; }
-    const ts = wChart.timeScale(), w = $('wchart').clientWidth;
-    const xy = (p) => [ts.timeToCoordinate(p.time), wSeries.priceToCoordinate(p.value)];
-    const [lx, ly] = xy(wData[wData.length - 1]);
-    wDot.hidden = lx == null || ly == null;
-    if (!wDot.hidden) wDot.style.transform = `translate(${lx}px, ${ly}px)`;
-    const out = (x, y) => x == null || y == null || x < -6 || x > w + 6;   // scrolled out of view
-    wDot.hidden = wDot.hidden || out(lx, ly);
-    wDots.forEach((d) => {
-      const [x, y] = xy(d.p);
-      d.x = x; d.y = y;
-      d.el.hidden = out(x, y);
-      if (!d.el.hidden) d.el.style.transform = `translate(${x}px, ${y}px)`;
-    });
-    if (tipSig) { const d = wDots.find((x) => x.e.sig === tipSig); if (d && !d.el.hidden) showTip(d); else { tipPinned = false; showTip(null); } }
-    const used = [];
-    wBubbles.slice().reverse().forEach((b) => {
-      const [x, y] = xy(b.p);
-      const off = out(x, y) || !!tipSig;   // the pop-up card takes over while it's showing
-      b.el.hidden = b.pt.hidden = off;
-      if (off) return;
-      b.pt.style.transform = `translate(${x}px, ${y}px)`;
-      const bw = b.el.offsetWidth, left = Math.max(4, Math.min(w - bw - 4, x - bw / 2));
-      // newest first: a bubble that would cover a newer one moves up a row, and is left out if both rows are taken
-      let lift = 0;
-      while (used.some((u) => u.lift === lift && left < u.right + 6 && left + bw > u.left - 6)) lift++;
-      if (lift > 1) { b.el.hidden = true; return; }
-      used.push({ left, right: left + bw, lift });
-      b.el.style.transform = `translate(${left}px, ${Math.max(2, y - 40 - lift * 32)}px)`;
-    });
+    const last = wData[wData.length - 1];
+    const x = wChart.timeScale().timeToCoordinate(last.time), y = wSeries.priceToCoordinate(last.value), w = $('wchart').clientWidth;
+    wDot.hidden = x == null || y == null || x < -6 || x > w + 6;
+    if (!wDot.hidden) wDot.style.transform = `translate(${x}px, ${y}px)`;
+    wDot.style.color = css(last.value >= (wData[0] ? wData[0].value : 0) ? '--gain' : '--loss');
+    if (tipE) showTip(wPts.find((q) => q.e === tipE));
   }
-  function renderWalletChart(m, total) {
-    const now = Math.floor(Date.now() / 1000);
-    let pts = m.points.concat(samples);
-    if (total != null) pts.push([now, total]);
-    pts.sort((a, b) => a[0] - b[0]);
-    const firstTrade = m.evs.find((e) => e.side === 'BUY' || e.side === 'SELL');
-    const from = cfg.tf ? now - cfg.tf : firstTrade ? firstTrade.ts - 600 : 0;
-    if (from) {
-      const inRange = pts.filter((p) => p[0] >= from);
-      const before = pts.filter((p) => p[0] < from).pop();   // carry the value at the start of the range
-      pts = before ? [[from, before[1]], ...inRange] : inRange;
-    }
-    const first = pts.length ? pts[0][1] : null, last = pts.length ? pts[pts.length - 1][1] : null;
+  // running profit over the range: closed trades one by one, then what any open coin is worth right now
+  function renderProfitChart(m) {
+    const now = Math.floor(Date.now() / 1000), from = cfg.tf ? now - cfg.tf : 0;
+    const k = usd() ? solUsd : 1, conv = (v) => +(v * k).toFixed(usd() ? 2 : 5);
+    let cum = m.rounds.filter((r) => r.ts < from).reduce((sum, r) => sum + r.pnl, 0);
+    const inRange = m.rounds.filter((r) => r.ts >= from);
+    const raw = [{ t: from || (m.rounds.length ? m.rounds[0].ts - 600 : now - 3600), v: cum }];
+    inRange.forEach((r) => { cum += r.pnl; raw.push({ t: r.ts, v: cum, e: r }); });
+    const open = Object.keys(hold).reduce((sum, x) => { const b = m.lastBuy[x], w = worthOf(x); return sum + (b && w != null ? w - b.sol : 0); }, 0);
+    raw.push({ t: now, v: cum + open, now: true });
+    // fill the quiet stretches between trades so the line spans the whole range and can be scrubbed anywhere
+    const stepT = Math.max(60, Math.floor((now - raw[0].t) / 80)), dense = [];
+    raw.forEach((q, i) => { dense.push(q); const nx = raw[i + 1]; if (nx) for (let t = q.t + stepT; t < nx.t - stepT / 2; t += stepT) dense.push({ t, v: q.v }); });
+    wPts = [];
+    dense.forEach((q) => {   // the chart needs each point at its own second
+      let time = q.t + TZ; const prev = wPts[wPts.length - 1];
+      if (prev && time <= prev.time) time = prev.time + 1;
+      wPts.push({ time, value: conv(q.v), e: q.e, now: q.now });
+    });
+    const start = raw[0].v, end = raw[raw.length - 1].v;
     ensureWalletChart();
     if (wSeries) {
-      const byT = new Map();
-      pts.forEach(([t, v]) => byT.set(t + TZ, v));
-      const k = usd() ? solUsd : 1;
-      wData = [...byT.entries()].map(([time, v]) => ({ time, value: +(v * k).toFixed(usd() ? 2 : 5) }));
-      const A = css('--accent');
+      const G = css('--gain'), L = css('--loss');
       wSeries.applyOptions({
-        lineColor: A, topColor: alpha(A, 0.38), bottomColor: alpha(A, 0), crosshairMarkerBackgroundColor: A,
+        baseValue: { type: 'price', price: conv(start) },
+        topLineColor: G, topFillColor1: alpha(G, 0.28), topFillColor2: alpha(G, 0.02),
+        bottomLineColor: L, bottomFillColor1: alpha(L, 0.02), bottomFillColor2: alpha(L, 0.28),
         priceFormat: usd() ? { type: 'price', precision: 2, minMove: 0.01 } : { type: 'price', precision: 4, minMove: 0.0001 },
       });
+      wData = wPts.map((q) => ({ time: q.time, value: q.value }));
       wSeries.setData(wData);
       if (!wDrawn && wData.length > 1) { wDrawn = true; replay($('wchart'), 'draw', 1000); }   // the first time the line appears, it draws in
       if (wBase) wSeries.removePriceLine(wBase);
-      // dotted line at where the range started; for ALL, at your starting balance
-      wBase = wData.length ? wSeries.createPriceLine({ price: cfg.tf ? wData[0].value : +(cfg.start * k).toFixed(usd() ? 2 : 5), color: alpha(css('--muted').startsWith('#') ? css('--muted') : '#8e8e93', 0.7), lineWidth: 1, lineStyle: 1, axisLabelVisible: false }) : null;
+      wBase = wSeries.createPriceLine({ price: conv(start), color: alpha(css('--muted').startsWith('#') ? css('--muted') : '#8e8e93', 0.6), lineWidth: 1, lineStyle: 1, axisLabelVisible: false });
       const fitKey = cfg.tf + '|' + cfg.unit;
-      if (fitKey !== wFitKey) { wFitKey = fitKey; wMoved = false; tipPinned = false; tipSig = null; }
+      if (fitKey !== wFitKey) { wFitKey = fitKey; wMoved = false; tipPinned = false; tipE = null; }
       if (!wMoved) wChart.timeScale().fitContent();
-      // a dot for every trade in the range (blue ring for a buy, green or red for a sell),
-      // and bubbles for the latest few sells: +$38 for a win, −7% · −$2.98 for a loss
-      wBubbles.forEach((b) => { b.el.remove(); b.pt.remove(); });
-      wDots.forEach((d) => d.el.remove());
-      const byTime = new Map(wData.map((p) => [p.time, p]));
-      const inView = m.evs.filter((e) => (e.side === 'BUY' || e.side === 'SELL' || m.moves.includes(e)) && byTime.has(e.ts + TZ));
-      const sells = inView.filter((e) => e.side === 'SELL').length;
-      wDots = inView.filter((e) => e.side !== 'BUY' || sells <= 12 || m.lastBuy[e.mint] === e).slice(-80).map((e) => {
-        const el = make('div', 'tdot ' + (e.side === 'TRANSFER' ? 'move' : e.side === 'BUY' ? 'buy' : (e.pnl ?? 0) > 0 ? 'win' : 'lose'));
-        $('wchart').append(el);
-        return { el, e, p: byTime.get(e.ts + TZ) };
-      });
       const lastTrade = m.evs.filter((e) => e.side === 'BUY' || e.side === 'SELL').pop();
-      wNote.hidden = !!inView.length || !lastTrade || !cfg.tf;
-      if (!wNote.hidden) { wNote.replaceChildren('No trades in this range · last one ' + ago(lastTrade.ts) + ' · ', make('b', '', 'show all')); }
-      wBubbles = m.rounds.filter((r) => byTime.has(r.ts + TZ)).slice(-3).map((r) => {
-        const win = r.pnl > 0;
-        const el = make('div', 'bub ' + (win ? 'win' : 'lose'));
-        el.append(avatar(r.mint, true), document.createTextNode(win ? money(r.pnl, true) : pct(r.ret) + ' · ' + money(r.pnl, true)));
-        if (!bubSeen.has(r.sig)) { bubSeen.add(r.sig); el.classList.add('pop'); }
-        const pt = make('div', 'bpt' + (win ? '' : ' lose'));
-        $('wchart').append(pt, el);
-        return { el, pt, p: byTime.get(r.ts + TZ) };
-      });
+      wNote.hidden = !!inRange.length || !lastTrade || !cfg.tf;
+      if (!wNote.hidden) wNote.replaceChildren('No trades closed in this range · last one ' + ago(lastTrade.ts) + ' · ', make('b', '', 'show all'));
       requestAnimationFrame(placeWallet);
     }
-    return { first, last };
+    return { profit: end - start, trades: inRange, open };
   }
 
   // ---------- bot cards ----------
@@ -930,6 +875,7 @@
     scan: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="2.2" fill="currentColor"/><path d="M12 3a9 9 0 1 0 9 9"/><path d="M12 7.5a4.5 4.5 0 1 0 4.5 4.5"/></svg>',
     target: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r="1.3" fill="currentColor"/></svg>',
     trend: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l6-6 4 4 8-8"/><path d="M15 7h6v6"/></svg>',
+    wallet: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="6" width="18" height="13" rx="3"/><path d="M16 12.5h2" stroke-linecap="round"/><path d="M6 6l9-3 1 3"/></svg>',
     bolt: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M13.5 2 4.5 13.5h6.2L9.8 22l9-11.5h-6.2z"/></svg>',
   };
   function cardHead(icon, name, status, cls, color) {
@@ -982,12 +928,11 @@
     rr.append(ring, rt);
     wc.append(cardHead('target', 'Results', n ? 'Win rate' : 'No trades yet', 'y', css('--ring')), rr);
     cards.push(wc);
-    // profit since start
+    // wallet balance, and any money sent in or out since the bot started
     if (total != null) {
-      const pl = total - cfg.start - m.flow;
       const pc = make('div', 'card');
-      const big = make('div', 'big num', money(pl, true)); tone(big, pl);
-      pc.append(cardHead('trend', 'Profit', 'since start', pl >= 0 ? 'g' : 'r', css(pl >= 0 ? '--gain' : '--loss')), big, make('div', 'small num', pct(pl / cfg.start) + ' · ' + (other(pl, true) || money(cfg.start) + ' start')));
+      const moved = m.flow ? money(Math.abs(m.flow)) + (m.flow < 0 ? ' taken out' : ' added') : 'nothing added or taken out';
+      pc.append(cardHead('wallet', 'Wallet', 'balance', 'b', css('--accent')), make('div', 'big num', money(total)), make('div', 'small num', (other(total) ? other(total) + ' · ' : '') + moved));
       cards.push(pc);
     }
     // today
@@ -1308,16 +1253,17 @@
     if (v == null || scrubbing) return;
     const from = shown;
     if (from == null || shownUnit !== cfg.unit || reduceMotion.matches || Math.abs(v - from) < 1e-9) {
-      el.textContent = money(v); shown = v; shownUnit = cfg.unit; return;
+      el.textContent = money(v, true); tone(el, v); shown = v; shownUnit = cfg.unit; return;
     }
     el.classList.remove('tick-up', 'tick-down'); void el.offsetWidth;
     el.classList.add(v > from ? 'tick-up' : 'tick-down');
     clearTimeout(tickT); tickT = setTimeout(() => el.classList.remove('tick-up', 'tick-down'), 650);
+    tone(el, v);
     const t0 = performance.now(), id = ++anim;
     const step = (t) => {
       if (id !== anim) return;
       const k = Math.min(1, (t - t0) / 700), e = 1 - Math.pow(1 - k, 3);
-      el.textContent = money(from + (v - from) * e);
+      el.textContent = money(from + (v - from) * e, true);
       if (k < 1) requestAnimationFrame(step);
     };
     requestAnimationFrame(step);
@@ -1328,17 +1274,17 @@
     const m = model();
     const val = Object.keys(hold).reduce((s, x) => s + (worthOf(x) || 0), 0);
     const total = solBal != null ? solBal + val : null;
-    setTotal(total);
-    const w = renderWalletChart(m, total);
-    if (w.first != null && w.last != null && !scrubbing) {
-      // ALL compares with your starting balance, like the × pill; the other ranges with where the range began
-      const base = cfg.tf ? w.first : cfg.start;
-      let d = w.last - base - (cfg.tf ? m.flowSince(Math.floor(Date.now() / 1000) - cfg.tf) : m.flow);
-      if (Math.abs(d) < 5e-6) d = 0;   // a flat range reads as no change, not a green ▲ $0.00
-      $('chg').textContent = (d > 0 ? '▲ ' : d < 0 ? '▼ ' : '') + money(Math.abs(d)) + ' (' + pct(base ? d / base : 0) + ')';
-      tone($('chg'), d);
+    const w = renderProfitChart(m);
+    if (!scrubbing) {
+      let pnl = w.profit; if (Math.abs(pnl) < 5e-7) pnl = 0;
+      if (solBal != null) setTotal(pnl);
+      $('hLabel').textContent = 'Profit · ' + { 86400: 'last 24 hours', 604800: 'last 7 days', 2592000: 'last 30 days', 0: 'all time' }[cfg.tf];
+      const won = w.trades.filter((r) => r.pnl > 0).length;
+      const bits = [w.trades.length ? won + ' of ' + w.trades.length + ' trades won' : 'no trades closed'];
+      if (Object.keys(hold).length) bits.push(money(w.open, true) + ' open');
+      if (total != null) bits.push('wallet ' + money(total));
+      $('chg').textContent = bits.join(' · '); tone($('chg'), 0);
     }
-    if (total != null && cfg.start > 0) { $('mult').hidden = false; $('mult').textContent = ((total - m.flow) / cfg.start).toFixed(2) + '×'; }
     renderBot(m, total);
     renderFeed(m);
     if (sheetMint) paintSheet();

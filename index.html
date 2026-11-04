@@ -78,9 +78,13 @@
   .live.err { color: var(--loss); } .live.err i { background: var(--loss); }
   @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(48,209,88,.5); } 70% { box-shadow: 0 0 0 7px rgba(48,209,88,0); } 100% { box-shadow: 0 0 0 0 rgba(48,209,88,0); } }
   .tools { flex: none; display: flex; gap: 6px; align-items: center; }
-  .seg { display: inline-flex; background: var(--card); border-radius: 999px; padding: 3px; }
-  .seg button { padding: 6px 11px; border-radius: 999px; font-size: 13px; font-weight: 700; color: var(--muted); }
-  .seg button[aria-pressed="true"] { background: var(--ink); color: var(--on-ink); }
+  .seg { position: relative; display: inline-flex; background: var(--card); border-radius: 999px; padding: 3px; }
+  .seg button { position: relative; z-index: 1; padding: 6px 11px; border-radius: 999px; font-size: 13px; font-weight: 700; color: var(--muted); transition: color .25s ease, transform .12s ease; }
+  .seg button[aria-pressed="true"] { color: var(--on-ink); }
+  /* the highlight behind the chosen option slides over to it */
+  .knob { position: absolute; left: 0; top: 0; z-index: 0; border-radius: 999px; pointer-events: none; }
+  .knob.ready { transition: transform .38s cubic-bezier(.3, .8, .25, 1), width .38s cubic-bezier(.3, .8, .25, 1); }
+  .seg .knob { background: var(--ink); }
   .pill { width: 36px; height: 36px; display: grid; place-items: center; background: var(--card); border-radius: 50%; color: var(--muted); }
   .pill[aria-pressed="true"] { color: var(--ink); }
   .pill svg { display: block; width: 18px; height: 18px; }
@@ -111,9 +115,10 @@
   .tdot.buy { background: var(--bg); border: 2px solid var(--accent); } .tdot.win { background: var(--gain); } .tdot.lose { background: var(--loss); }
   .wnote { position: absolute; left: 16px; bottom: 12px; z-index: 3; font-size: 13px; color: var(--muted); background: var(--bg); background: color-mix(in srgb, var(--bg) 80%, transparent); border-radius: 999px; padding: 5px 11px; }
   .wnote b { color: var(--accent); font-weight: 600; }
-  .tf { display: flex; justify-content: space-between; gap: 4px; padding-bottom: 14px; border-bottom: 1px solid var(--line); }
-  .tf button { display: inline-flex; align-items: center; gap: 6px; font-size: 16px; font-weight: 700; color: var(--accent); padding: 7px 12px; border-radius: 999px; }
-  .tf button[aria-pressed="true"] { background: var(--accent); color: #fff; }
+  .tf { position: relative; display: flex; justify-content: space-between; gap: 4px; padding-bottom: 14px; border-bottom: 1px solid var(--line); }
+  .tf .knob { background: var(--accent); box-shadow: 0 0 16px rgba(10, 132, 255, .45); }
+  .tf button { display: inline-flex; align-items: center; gap: 6px; font-size: 16px; font-weight: 700; color: var(--accent); padding: 7px 12px; border-radius: 999px; position: relative; z-index: 1; transition: color .25s ease, transform .12s ease; }
+  .tf button[aria-pressed="true"] { color: #fff; }
   .tf button i { width: 10px; height: 10px; border-radius: 50%; background: currentColor; }
 
   /* sections */
@@ -167,7 +172,7 @@
   .feed .day:first-child { padding-top: 2px; }
   /* tapping feels like an app: things press in, and a long press doesn't select text */
   button, .card, .act { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
-  .card, .pill, .seg button, .tf button, .back, .tabbar button, .primary, .ghost { transition: transform .12s ease; }
+  .card, .pill, .back, .tabbar button, .primary, .ghost { transition: transform .12s ease; }
   .card:active, .pill:active, .seg button:active, .tf button:active, .back:active, .tabbar button:active, .primary:active, .ghost:active { transform: scale(.96); }
   .act { transition: opacity .12s ease; } .act:active { opacity: .55; }
   .avw { position: relative; }
@@ -179,6 +184,23 @@
   .act .amt { text-align: right; font-size: 17px; font-weight: 600; white-space: nowrap; }
   .act .amt small { display: block; font-size: 14px; font-weight: 400; color: var(--muted); }
   .act.fresh { animation: slide .55s cubic-bezier(.2,.8,.2,1); }
+  /* first load: rows and cards ease in one after another */
+  .feed li.in, .card.in { animation: rise .45s cubic-bezier(.2, .8, .2, 1) both; animation-delay: calc(var(--i) * 35ms); }
+  /* switching tabs and time ranges */
+  #dash.swap > :not([hidden]) { animation: rise .3s cubic-bezier(.2, .8, .2, 1) both; }
+  .wchart.swap canvas { animation: chartIn .35s ease both; }
+  @keyframes chartIn { from { opacity: .15; } }
+  /* new bubbles pop in; the dot card scales in */
+  .bub.pop { animation: pop .38s cubic-bezier(.3, 1.4, .5, 1) both; }
+  @keyframes pop { from { opacity: 0; scale: .7; } }
+  .wtip { transform-origin: 50% 100%; }
+  .wtip > * { animation: tipIn .18s ease-out both; }
+  @keyframes tipIn { from { opacity: 0; translate: 0 4px; } }
+  /* a held coin's % flashes when it moves */
+  .big.up { animation: flashUp .7s ease; } .big.down { animation: flashDown .7s ease; }
+  @keyframes flashUp { 0% { color: var(--gain); scale: 1.06; } 100% { scale: 1; } }
+  @keyframes flashDown { 0% { color: var(--loss); scale: 1.06; } 100% { scale: 1; } }
+  .big { transform-origin: left center; display: inline-block; }
   @keyframes slide { from { transform: translateY(-12px); opacity: 0; } to { transform: none; opacity: 1; } }
   .empty { padding: 22px 8px; text-align: center; color: var(--muted); font-size: 14px; list-style: none; }
 
@@ -187,8 +209,21 @@
   @keyframes fade { from { opacity: 0; } }
   .sheet { position: fixed; z-index: 21; background: var(--bg); display: flex; flex-direction: column; overflow: hidden; animation: rise .25s cubic-bezier(.2,.8,.2,1);
     right: max(16px, env(safe-area-inset-right, 0px)); top: max(16px, env(safe-area-inset-top, 0px)); bottom: max(16px, env(safe-area-inset-bottom, 0px)); width: min(560px, calc(100% - 32px)); border-radius: 24px; border: 1px solid var(--line); }
-  @media (max-width: 700px) { .sheet { inset: 0; width: 100%; border-radius: 0; border: 0; padding-top: env(safe-area-inset-top, 0px); } }
+  @media (max-width: 700px) { .sheet { inset: 0; width: 100%; border-radius: 0; border: 0; padding-top: env(safe-area-inset-top, 0px); animation: push .34s cubic-bezier(.25, .85, .25, 1); } }
   @keyframes rise { from { transform: translateY(20px); opacity: 0; } }
+  /* the coin page slides in from the right on a phone, like an iPhone screen, and back out when it closes */
+  @keyframes push { from { transform: translateX(100%); } }
+  @keyframes pushOut { to { transform: translateX(100%); } }
+  @keyframes sink { to { transform: translateY(20px); opacity: 0; } }
+  @keyframes fadeOut { to { opacity: 0; } }
+  .sheet.closing { animation: sink .22s ease forwards; }
+  @media (max-width: 700px) { .sheet.closing { animation: pushOut .26s cubic-bezier(.4, 0, .8, .4) forwards; } }
+  .scrim.closing { animation: fadeOut .22s ease forwards; }
+  /* its sections fade up one after another */
+  .sheet:not(.closing) .sscroll > * { animation: rise .42s cubic-bezier(.2, .8, .2, 1) both; }
+  .sheet .sscroll > :nth-child(2) { animation-delay: .04s; } .sheet .sscroll > :nth-child(3) { animation-delay: .07s; }
+  .sheet .sscroll > :nth-child(4) { animation-delay: .1s; } .sheet .sscroll > :nth-child(5) { animation-delay: .13s; }
+  .sheet .sscroll > :nth-child(n+6) { animation-delay: .16s; }
   .sbar { flex: none; display: flex; align-items: center; justify-content: space-between; padding: 12px 16px 4px; }
   .back { width: 36px; height: 36px; border-radius: 50%; background: var(--card); display: grid; place-items: center; color: var(--ink); }
   .back svg { width: 18px; height: 18px; }
@@ -288,7 +323,8 @@
     body[data-view="home"] [data-tab="trades"], body[data-view="trades"] [data-tab="home"] { display: none !important; }
   }
   @media (display-mode: standalone) { .foot { display: none; } }
-  @media (prefers-reduced-motion: reduce) { .act.fresh, .live.on i, .sheet, .scrim, .toast, .sk, .radar::before, .radar::after { animation: none; } .meter b { transition: none; } }
+  /* with Reduce Motion switched on, nothing slides, fades or pops */
+  @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
 </style>
 </head>
 <body data-view="home">
@@ -697,6 +733,7 @@
     crosshair: { horzLine: { visible: false, labelVisible: false }, vertLine: { color: css('--line'), width: 1, style: 0, labelVisible: false } },
   });
   let wChart = null, wSeries = null, wBase = null, wData = [], wBubbles = [], wDots = [];
+  const bubSeen = new Set();
   const wDot = make('div', 'wdot');
   const wNote = make('button', 'wnote'); wNote.type = 'button'; wNote.hidden = true;
   wNote.addEventListener('click', () => { const all = document.querySelector('.tf button[data-tf="0"]'); if (all) all.click(); });
@@ -835,6 +872,7 @@
         const win = r.pnl > 0;
         const el = make('div', 'bub ' + (win ? 'win' : 'lose'));
         el.append(avatar(r.mint, true), document.createTextNode(win ? money(r.pnl, true) : pct(r.ret) + ' · ' + money(r.pnl, true)));
+        if (!bubSeen.has(r.sig)) { bubSeen.add(r.sig); el.classList.add('pop'); }
         const pt = make('div', 'bpt' + (win ? '' : ' lose'));
         $('wchart').append(pt, el);
         return { el, pt, p: byTime.get(r.ts + TZ) };
@@ -861,6 +899,8 @@
     h.append(ic, t);
     return h;
   }
+  const prevPct = {};
+  let botDrawn = false;
   function renderBot(m, total) {
     const now = Date.now() / 1000;
     const cards = [];
@@ -874,6 +914,8 @@
       c.addEventListener('click', () => openSheet(mint, buy));
       c.append(cardHead(avatar(mint, true), sym(mint), buy ? 'Holding · ' + dur(now - buy.ts) : 'Holding', 'g'));
       const big = make('div', 'big num', p == null ? '…' : pct(p)); tone(big, p ?? 0);
+      if (p != null && prevPct[mint] != null && Math.abs(p - prevPct[mint]) > 0.002) big.classList.add(p > prevPct[mint] ? 'up' : 'down');
+      prevPct[mint] = p;
       const sub = make('div', 'small num', (v != null ? money(v) : '—') + (v != null && buy ? ' · ' + money(v - buy.sol, true) : ''));
       const meter = make('div', 'meter'), dot = make('b');
       dot.style.left = Math.max(0, Math.min(100, (((p ?? 0) - STOP) / (0.3 - STOP)) * 100)) + '%'; meter.append(dot);
@@ -915,6 +957,7 @@
     tc.append(cardHead('bolt', 'Today', today.length ? money(tp, true) : 'Quiet', today.length ? (tp >= 0 ? 'g' : 'r') : 'b', css('--accent')), tb,
       make('div', 'small', today.length ? 'closed trade' + (today.length > 1 ? 's' : '') + ' today' : lastTrade ? 'last trade ' + ago(lastTrade.ts) : 'no trades yet'));
     cards.push(tc);
+    if (!botDrawn) { botDrawn = true; cards.forEach((c, i) => { c.classList.add('in'); c.style.setProperty('--i', i); }); }
     const keep = $('car').scrollLeft;   // redraws every few seconds shouldn't throw you back to the first card
     $('car').replaceChildren(...cards);
     $('car').scrollLeft = keep;
@@ -985,12 +1028,13 @@
     $('feed').replaceChildren(...(list.length ? all : [empty()]));
     $('feedHome').replaceChildren(...(list.length ? list.slice(0, 5).map((e) => tradeRow(e, m, now)) : [empty()]));
     $('seeAll').hidden = list.length <= 5;
+    if (firstPaint && list.length) [$('feed'), $('feedHome')].forEach((f) => [...f.children].slice(0, 12).forEach((li, i) => { li.classList.add('in'); li.style.setProperty('--i', i); }));
     firstPaint = false;
   }
   $('seeAll').addEventListener('click', () => go('trades'));
 
   // ---------- coin page ----------
-  let cChart = null, sheetMint = null, sheetTrade = null, sheetInfo = {}, lastFocus = null;
+  let cChart = null, sheetMint = null, sheetTrade = null, sheetInfo = {}, lastFocus = null, closeT = 0;
   const clearTags = () => $('cchart').querySelectorAll('.tag').forEach((el) => el.remove());
   function paintSheet() {
     const mint = sheetMint, e = sheetTrade, info = sheetInfo;
@@ -1044,6 +1088,7 @@
     sheetMint = mint; if (!same) { sheetInfo = {}; lastFocus = document.activeElement; }
     // a history step for the coin page, so the phone's back gesture closes it instead of leaving the app
     if (!(history.state && history.state.coin)) try { history.pushState({ coin: 1 }, ''); } catch {}
+    clearTimeout(closeT); $('sheet').classList.remove('closing'); $('scrim').classList.remove('closing');
     $('scrim').hidden = false; $('sheet').hidden = false;
     const av = avatar(mint); av.id = 'sheetAv'; $('sheetAv').replaceWith(av);
     $('sheetClose').focus();
@@ -1180,9 +1225,17 @@
   }
   function closeSheet() {
     if (history.state && history.state.coin) { history.back(); return; }   // closes through the popstate below
-    $('scrim').hidden = true; $('sheet').hidden = true; sheetMint = null; sheetTrade = null; sheetInfo = {};
-    if (cChart) { cChart.remove(); cChart = null; }
-    clearTags();
+    sheetMint = null; sheetTrade = null; sheetInfo = {};
+    // slide out first, then hide and drop the chart (unless another coin opened meanwhile)
+    const done = () => {
+      $('sheet').classList.remove('closing'); $('scrim').classList.remove('closing');
+      if (sheetMint) return;
+      $('scrim').hidden = true; $('sheet').hidden = true;
+      if (cChart) { cChart.remove(); cChart = null; }
+      clearTags();
+    };
+    clearTimeout(closeT);
+    if (reduceMotion.matches) done(); else { $('sheet').classList.add('closing'); $('scrim').classList.add('closing'); closeT = setTimeout(done, 270); }
     if (lastFocus && lastFocus.focus) lastFocus.focus();
   }
   if (history.state && history.state.coin) try { history.replaceState(null, ''); } catch {}   // a reload with a coin page open starts clean
@@ -1193,6 +1246,11 @@
 
   // ---------- everything ----------
   const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)');
+  // runs a one-off "swap" animation on an element (tab switch, time range), then clears it so redraws don't replay it
+  function replay(el) {
+    el.classList.remove('swap'); void el.offsetWidth; el.classList.add('swap');
+    clearTimeout(el._swapT); el._swapT = setTimeout(() => el.classList.remove('swap'), 450);
+  }
   let shown = null, shownUnit = null, anim = 0, tickT = 0;
   function setTotal(v) {
     const el = $('total');
@@ -1324,6 +1382,7 @@
     if (running) return;
     running = true;
     $('setup').hidden = true; $('dash').hidden = false; paintTabs();
+    document.querySelectorAll('.tf, .seg').forEach(slideKnob);
     if (cached && cached.solBal != null) {   // open instantly with the last known numbers
       solBal = cached.solBal; hold = cached.hold || {}; solUsd = cached.solUsd || null; Object.assign(prices, cached.prices || {});
       renderAll();
@@ -1360,8 +1419,10 @@
     const same = view === v; view = v;
     if (v === 'trades') { unseen = 0; paintBadge(); }
     paintTabs();
+    if (!same) replay($('dash'));
     $('dash').scrollTo({ top: 0, behavior: same || reduceMotion.matches ? 'auto' : 'instant' });
     if (v === 'home' && wChart) { wChart.timeScale().fitContent(); requestAnimationFrame(placeWallet); paintDots(); }
+    document.querySelectorAll('.tf, .seg').forEach(slideKnob);
   }
   document.querySelectorAll('.tabbar button').forEach((b) => b.addEventListener('click', () => go(b.dataset.go)));
 
@@ -1435,15 +1496,29 @@
   }
   const paintSound = () => { $('soundBtn').setAttribute('aria-pressed', cfg.sound ? 'true' : 'false'); const label = cfg.sound ? 'Sound on' : 'Sound off'; $('soundBtn').title = label; $('soundBtn').setAttribute('aria-label', label); };
   $('soundBtn').addEventListener('click', () => { cfg.sound = !cfg.sound; store.set('sound', cfg.sound); paintSound(); if (cfg.sound) beep('win'); });
-  const paintUnit = () => { $('unitSol').setAttribute('aria-pressed', cfg.unit === 'SOL' ? 'true' : 'false'); $('unitUsd').setAttribute('aria-pressed', cfg.unit === 'USD' ? 'true' : 'false'); };
+  // the highlight behind the chosen time range / unit slides over to it (it waits until the group is on screen to measure)
+  function slideKnob(group) {
+    let k = group.querySelector('.knob');
+    if (!k) { k = make('span', 'knob'); group.prepend(k); }
+    const b = group.querySelector('button[aria-pressed="true"]');
+    if (!b || !b.offsetWidth) return;
+    Object.assign(k.style, { width: b.offsetWidth + 'px', height: b.offsetHeight + 'px', top: b.offsetTop + 'px', transform: `translateX(${b.offsetLeft}px)` });
+    if (!k.classList.contains('ready')) setTimeout(() => k.classList.add('ready'), 60);   // jump into place the first time, slide after that
+  }
+  const knobGroups = [document.querySelector('.tf'), document.querySelector('.seg')];
+  try { const ro = new ResizeObserver(() => knobGroups.forEach(slideKnob)); knobGroups.forEach((g) => ro.observe(g)); } catch {}
+  const paintUnit = () => { $('unitSol').setAttribute('aria-pressed', cfg.unit === 'SOL' ? 'true' : 'false'); $('unitUsd').setAttribute('aria-pressed', cfg.unit === 'USD' ? 'true' : 'false'); slideKnob(document.querySelector('.seg')); };
   const setUnit = (u) => { cfg.unit = u; store.set('unit', u); paintUnit(); if (running) renderAll(); };
   $('unitSol').addEventListener('click', () => setUnit('SOL'));
   $('unitUsd').addEventListener('click', () => setUnit('USD'));
   document.querySelectorAll('.tf button').forEach((b) => {
     b.setAttribute('aria-pressed', Number(b.dataset.tf) === cfg.tf ? 'true' : 'false');
     b.addEventListener('click', () => {
+      const changed = cfg.tf !== Number(b.dataset.tf);
       cfg.tf = Number(b.dataset.tf); store.set('tf', cfg.tf);
       document.querySelectorAll('.tf button').forEach((x) => x.setAttribute('aria-pressed', x === b ? 'true' : 'false'));
+      slideKnob(document.querySelector('.tf'));
+      if (changed) replay($('wchart'));
       if (running) renderAll();
     });
   });
